@@ -1,0 +1,2814 @@
+<!--
+═══════════════════════════════════════════════════════════════
+  THE STORY ENGINE — DEPLOYMENT GUIDE
+  GitHub Pages · One-time setup · No build tools required
+═══════════════════════════════════════════════════════════════
+
+  BEFORE YOU DEPLOY:
+  ──────────────────
+  1. Get an Anthropic API key at https://console.anthropic.com
+     - Sign up / log in
+     - Go to API Keys in the left sidebar
+     - Click Create Key — name it "Story Engine"
+     - Copy the key (starts with sk-ant-) — you only see it once
+     - Add credits under Billing (recommended: $20 to start)
+     - Set a monthly spend cap under Billing › Usage Limits ($20)
+
+  2. When you gift the app, send the deployed URL + the key.
+     Carson enters the key once on first open. It stays in his
+     browser for that session. New tab = enter key once more.
+
+  DEPLOY TO GITHUB PAGES:
+  ───────────────────────
+  Step 1 — Create a GitHub account at https://github.com
+           (skip if you already have one)
+
+  Step 2 — Create a new repository
+           - Click the + icon top right → New repository
+           - Name it: story-engine
+           - Set to Public
+           - Click Create repository
+
+  Step 3 — Upload this file
+           - In your new repo, click Add file → Upload files
+           - Upload this file (story-engine-stage11.html)
+           - In the commit message field type: Initial deploy
+           - Click Commit changes
+
+  Step 4 — Rename the file to index.html
+           - Click on the file you just uploaded
+           - Click the pencil (edit) icon top right
+           - Change the filename at the top to: index.html
+           - Click Commit changes
+
+  Step 5 — Enable GitHub Pages
+           - Go to Settings (top tab in your repo)
+           - Click Pages in the left sidebar
+           - Under Source, select: Deploy from a branch
+           - Branch: main / (root)
+           - Click Save
+
+  Step 6 — Get the live URL
+           - Wait 60–90 seconds
+           - Refresh the Pages settings tab
+           - Your URL will appear:
+             https://[your-username].github.io/story-engine
+           - Open it. Enter the API key. You're live.
+
+  FUTURE UPDATES:
+  ───────────────
+  To update the app with a new version:
+  - Go to your repo on GitHub
+  - Click on index.html
+  - Click the pencil (edit) icon
+  - Select the new file content (or use Upload files to replace)
+  - Commit changes — GitHub Pages redeploys automatically
+
+  COST ESTIMATE:
+  ──────────────
+  Model: Claude Sonnet 4.6
+  Price: $3 / million input tokens · $15 / million output tokens
+  Full curriculum run (all 6 frameworks + Pitch Room): ~$2–4
+  $20 in credits = 5–10 complete runs. Lasts months of regular use.
+
+═══════════════════════════════════════════════════════════════
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Story Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+
+/* ─── RESET & ROOT ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #080809;
+  --bg2:         #0e0e10;
+  --surface:     #121215;
+  --surface2:    #18181c;
+  --glass:       rgba(255,255,255,0.03);
+  --border:      rgba(255,255,255,0.07);
+  --border-hi:   rgba(255,255,255,0.14);
+  --gold:        #c8a45e;
+  --gold-bright: #e8c07a;
+  --gold-dim:    rgba(200,164,94,0.15);
+  --gold-glow:   rgba(200,164,94,0.08);
+  --text:        #ede9e0;
+  --text-sec:    #7a7870;
+  --text-muted:  #3a3835;
+  --red:         #c06060;
+  --sidebar-w:   280px;
+  --radius:      12px;
+  --radius-sm:   8px;
+  font-size: 16px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  font-weight: 300;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── GRAIN OVERLAY ─────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ─── AMBIENT GLOW ────────────────────────────────────────── */
+.ambient {
+  position: fixed; pointer-events: none; z-index: 0;
+  border-radius: 50%; filter: blur(120px);
+}
+.ambient-1 {
+  width: 600px; height: 400px;
+  top: -150px; left: calc(var(--sidebar-w) - 100px);
+  background: radial-gradient(ellipse, rgba(200,164,94,0.06) 0%, transparent 70%);
+}
+.ambient-2 {
+  width: 400px; height: 400px;
+  bottom: 0; right: 0;
+  background: radial-gradient(ellipse, rgba(120,100,200,0.04) 0%, transparent 70%);
+}
+
+/* ─── APP LAYOUT ─────────────────────────────────────────── */
+.app {
+  display: flex;
+  height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── SIDEBAR ────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 0;
+  position: relative;
+  z-index: 10;
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+
+.sidebar::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(200,164,94,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* logo */
+.sidebar-logo {
+  padding: 0 24px 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.logo-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 300;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+.logo-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  line-height: 1.1;
+}
+.logo-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+/* nav label */
+.sidebar-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 24px;
+  margin-bottom: 12px;
+}
+
+/* framework list */
+.framework-list {
+  list-style: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px;
+  scrollbar-width: none;
+}
+.framework-list::-webkit-scrollbar { display: none; }
+
+.framework-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s ease;
+  margin-bottom: 2px;
+  animation: fadeSlideIn 0.5s ease both;
+}
+.framework-item:hover { background: var(--glass); }
+.framework-item.active { background: var(--gold-dim); }
+.framework-item.active::before {
+  content: '';
+  position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 2px; border-radius: 2px;
+  background: var(--gold);
+}
+
+/* status dot */
+.fw-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.3s ease;
+}
+.fw-dot.active {
+  border-color: var(--gold);
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(200,164,94,0.6);
+}
+.fw-dot.done {
+  border-color: rgba(200,164,94,0.4);
+  background: rgba(200,164,94,0.15);
+}
+.fw-dot.done::after {
+  content: '';
+  position: absolute; inset: 1px;
+  border-radius: 50%;
+  background: var(--gold);
+  opacity: 0.5;
+}
+
+/* framework text */
+.fw-info { flex: 1; min-width: 0; }
+.fw-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 2px;
+}
+.fw-name {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-sec);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+.framework-item.active .fw-name { color: var(--text); }
+.framework-item:hover .fw-name { color: var(--text); }
+
+/* lock icon */
+.fw-lock {
+  font-size: 10px;
+  opacity: 0.25;
+  flex-shrink: 0;
+}
+
+/* sidebar footer */
+.sidebar-footer {
+  padding: 20px 24px 0;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+.progress-bar-wrap {
+  margin-bottom: 8px;
+}
+.progress-bar-label {
+  display: flex; justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.progress-bar {
+  height: 2px; background: var(--border);
+  border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-bright) 100%);
+  border-radius: 2px;
+  transition: width 1s cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ─── MAIN ───────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* topbar */
+.topbar {
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  flex-shrink: 0;
+  background: rgba(8,8,9,0.8);
+  backdrop-filter: blur(20px);
+}
+.topbar-left {
+  display: flex; align-items: center; gap: 10px;
+}
+.topbar-framework {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.8;
+}
+.topbar-sep { color: var(--text-muted); font-size: 12px; }
+.topbar-mode {
+  font-size: 11.5px;
+  color: var(--text-sec);
+}
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+.badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-hi);
+  color: var(--text-sec);
+  background: var(--surface);
+}
+.badge.gold {
+  border-color: rgba(200,164,94,0.3);
+  color: var(--gold);
+  background: var(--gold-glow);
+}
+
+/* hamburger (mobile) */
+.hamburger {
+  display: none;
+  flex-direction: column; gap: 4px;
+  cursor: pointer; padding: 4px;
+}
+.hamburger span {
+  width: 20px; height: 1.5px;
+  background: var(--text-sec);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* ─── CHAT AREA ──────────────────────────────────────────── */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 48px 40px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  display: flex;
+  flex-direction: column;
+}
+.chat-area::-webkit-scrollbar { width: 4px; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* welcome */
+.welcome {
+  max-width: 680px;
+  width: 100%;
+  margin: auto;
+  animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+}
+
+.welcome-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.welcome-eyebrow::before {
+  content: '';
+  width: 24px; height: 1px;
+  background: var(--gold);
+  opacity: 0.5;
+}
+
+.welcome-headline {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(36px, 5vw, 54px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+.welcome-headline em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.welcome-body {
+  font-size: 14.5px;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--text-sec);
+  margin-bottom: 36px;
+  max-width: 540px;
+}
+.welcome-body strong { color: var(--text); font-weight: 400; }
+
+/* feature cards */
+.feature-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, transform 0.2s ease;
+}
+.feature-card:hover {
+  border-color: var(--border-hi);
+  transform: translateY(-2px);
+}
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--gold-glow) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.feature-card:hover::before { opacity: 1; }
+.feature-icon {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.feature-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.feature-sub {
+  font-size: 10.5px;
+  color: var(--text-sec);
+  line-height: 1.5;
+}
+
+/* start prompt */
+.start-prompt {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--gold-dim);
+  border: 1px solid rgba(200,164,94,0.2);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-bottom: 16px;
+}
+.start-prompt:hover {
+  background: rgba(200,164,94,0.12);
+  border-color: rgba(200,164,94,0.35);
+  transform: translateX(4px);
+}
+.start-arrow {
+  font-size: 14px;
+  color: var(--gold);
+  transition: transform 0.2s ease;
+}
+.start-prompt:hover .start-arrow { transform: translateX(4px); }
+.start-text {
+  font-size: 13px;
+  color: var(--text-sec);
+}
+.start-text strong { color: var(--gold); font-weight: 500; }
+
+/* chat bubble */
+.msg {
+  max-width: 680px; width: 100%;
+  margin: 0 auto 20px;
+  animation: fadeUp 0.4s ease both;
+}
+.msg-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.msg-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-sec);
+}
+.msg.user .msg-bubble {
+  background: var(--gold-dim);
+  border-color: rgba(200,164,94,0.2);
+  border-radius: var(--radius) 0 var(--radius) var(--radius);
+  color: var(--text);
+  margin-left: auto;
+}
+.msg.user .msg-label { text-align: right; }
+
+/* ─── INPUT BAR ──────────────────────────────────────────── */
+.input-section {
+  padding: 16px 28px 24px;
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+  flex-shrink: 0;
+}
+.input-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.input-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border-hi);
+  border-radius: 16px;
+  padding: 12px 12px 12px 20px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+}
+.input-wrap:focus-within {
+  border-color: rgba(200,164,94,0.4);
+  box-shadow: 0 0 0 3px rgba(200,164,94,0.06), 0 8px 32px rgba(0,0,0,0.4);
+}
+.input-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -1px; border-radius: 17px;
+  background: linear-gradient(135deg, rgba(200,164,94,0.12), transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.input-wrap:focus-within::before { opacity: 1; }
+
+textarea {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 24px;
+  max-height: 140px;
+  padding: 0;
+  caret-color: var(--gold);
+}
+textarea::placeholder { color: var(--text-muted); }
+
+.send-btn {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: var(--gold-dim);
+  border: 1px solid rgba(200,164,94,0.25);
+  color: var(--gold);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.send-btn:hover {
+  background: rgba(200,164,94,0.2);
+  border-color: rgba(200,164,94,0.5);
+  transform: scale(1.05);
+}
+.send-btn:active { transform: scale(0.96); }
+.send-btn svg { width: 16px; height: 16px; }
+
+.input-hint {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+}
+
+/* ─── TYPING INDICATOR ───────────────────────────────────── */
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+.typing-dots span {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  opacity: 0.4;
+  animation: typing-bounce 1.4s ease infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%            { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 6px rgba(200,164,94,0.5); }
+  50%       { box-shadow: 0 0 14px rgba(200,164,94,0.9); }
+}
+
+.fw-dot.active { animation: pulse-dot 2.5s ease infinite; }
+
+/* stagger sidebar items */
+.framework-item:nth-child(1) { animation-delay: 0.05s; }
+.framework-item:nth-child(2) { animation-delay: 0.10s; }
+.framework-item:nth-child(3) { animation-delay: 0.15s; }
+.framework-item:nth-child(4) { animation-delay: 0.20s; }
+.framework-item:nth-child(5) { animation-delay: 0.25s; }
+.framework-item:nth-child(6) { animation-delay: 0.30s; }
+
+/* cursor blink */
+.cursor-blink {
+  display: inline-block;
+  width: 2px; height: 1em;
+  background: var(--gold);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: blink 1.1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ─── API KEY GATE ───────────────────────────────────────── */
+.key-gate {
+  margin-top: 8px;
+  animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) 0.3s both;
+}
+.key-gate-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 10px;
+}
+.key-gate-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.key-gate-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  letter-spacing: 0.04em;
+}
+.key-gate-input::placeholder {
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.key-gate-input:focus {
+  border-color: rgba(200,164,94,0.4);
+  box-shadow: 0 0 0 3px rgba(200,164,94,0.06);
+}
+.key-gate-btn {
+  background: var(--gold-dim);
+  border: 1px solid rgba(200,164,94,0.25);
+  border-radius: var(--radius-sm);
+  color: var(--gold);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.key-gate-btn:hover {
+  background: rgba(200,164,94,0.2);
+  border-color: rgba(200,164,94,0.5);
+}
+.key-gate-error {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  margin-bottom: 8px;
+  min-height: 14px;
+  display: none;
+}
+.key-gate-error.show { display: block; }
+.key-gate-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.key-gate-note a {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.key-gate-note a:hover { color: var(--text-sec); }
+
+/* ─── GUIDE DRAWER ───────────────────────────────────────── */
+.guide-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  color: var(--text-sec);
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.guide-btn:hover {
+  background: var(--gold-dim);
+  border-color: rgba(200,164,94,0.35);
+  color: var(--gold);
+}
+
+.guide-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+}
+.guide-overlay.show { display: block; }
+
+.guide-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 420px; max-width: 92vw;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  z-index: 201;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  overflow: hidden;
+}
+.guide-drawer.open { transform: translateX(0); }
+
+.guide-drawer::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(200,164,94,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.guide-header {
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.guide-header-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.guide-close {
+  width: 30px; height: 30px;
+  background: none; border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
+  flex-shrink: 0;
+}
+.guide-close:hover { color: var(--text); background: var(--glass); }
+
+.guide-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.guide-body::-webkit-scrollbar { width: 3px; }
+.guide-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.guide-section {
+  margin-bottom: 28px;
+}
+.guide-section:last-child { margin-bottom: 0; }
+
+.guide-section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+.guide-section-text {
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--text-sec);
+}
+.guide-section-text strong {
+  color: var(--text);
+  font-weight: 400;
+}
+.guide-section-text em {
+  color: var(--gold);
+  font-style: italic;
+}
+
+.guide-fw-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+.guide-fw-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--gold);
+  opacity: 0.6;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+  padding-top: 2px;
+  width: 24px;
+}
+.guide-fw-text {
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--text-sec);
+}
+.guide-fw-text strong {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.guide-tip-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+.guide-tip-arrow {
+  color: var(--gold);
+  font-size: 11px;
+  flex-shrink: 0;
+  padding-top: 3px;
+}
+.guide-tip-text {
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--text-sec);
+}
+
+/* ─── MOBILE OVERLAY ─────────────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 260px; }
+
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    transform: translateX(-100%);
+    z-index: 100;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.show { display: block; }
+
+  .hamburger { display: flex; }
+  .topbar { padding: 0 16px; }
+
+  .chat-area { padding: 32px 20px 16px; }
+  .feature-row { grid-template-columns: 1fr 1fr; }
+  .input-section { padding: 12px 16px 20px; }
+
+  .welcome-headline { font-size: 32px; }
+  .ambient-1 { display: none; }
+  .guide-drawer { width: 100vw; }
+  .guide-btn { margin-left: 2px; }
+}
+
+@media (max-width: 480px) {
+  .feature-row { grid-template-columns: 1fr; }
+  .badge:not(.gold) { display: none; }
+}
+
+/* ─── CTA LINKS (Welcome Screen) ────────────────────────────── */
+.cta-links {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cta-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--text-sec);
+  transition: color 0.2s ease;
+  user-select: none;
+}
+.cta-link:hover { color: var(--text); }
+.cta-arrow {
+  color: var(--gold);
+  font-size: 14px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+  min-width: 14px;
+}
+.cta-link:hover .cta-arrow { transform: translateX(4px); }
+.cta-link-muted {
+  color: var(--text-muted);
+}
+.cta-link-muted .cta-arrow {
+  color: rgba(200,164,94,0.4);
+}
+.cta-link-muted:hover { color: var(--text-sec); }
+.cta-link-muted:hover .cta-arrow { color: var(--gold); }
+
+/* ─── SIDEBAR SAVE / IMPORT ROW ─────────────────────────────── */
+.sidebar-save-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.save-btn {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 7px 6px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  text-align: center;
+}
+.save-btn:hover {
+  color: var(--gold);
+  border-color: rgba(200,164,94,0.35);
+  background: var(--gold-glow);
+}
+
+.logline-reveal {
+  max-width: 680px;
+  width: 100%;
+  margin: -8px auto 20px;
+  background: linear-gradient(135deg, rgba(200,164,94,0.1), rgba(200,164,94,0.04));
+  border: 1px solid rgba(200,164,94,0.35);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 18px 24px;
+  animation: fadeUp 0.5s ease both;
+}
+.logline-reveal-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+.logline-reveal-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text);
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+/* ─── FRAMEWORK TRANSITION CARD ──────────────────────────── */
+.framework-transition-card {
+  max-width: 680px;
+  width: 100%;
+  margin: 4px auto 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  animation: fadeUp 0.5s ease both;
+}
+.ftc-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.ftc-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--gold);
+}
+</style>
+</head>
+<body>
+
+<div class="ambient ambient-1"></div>
+<div class="ambient ambient-2"></div>
+
+<div class="app">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-eyebrow">Pitch Intelligence</div>
+      <div class="logo-title">The Story<br><em>Engine</em></div>
+    </div>
+
+    <div class="sidebar-label">Six Frameworks</div>
+
+    <ul class="framework-list">
+      <li class="framework-item active" onclick="selectFramework(this, 0)">
+        <span class="fw-dot active"></span>
+        <div class="fw-info">
+          <div class="fw-number">01</div>
+          <div class="fw-name">Hollywood Logline</div>
+        </div>
+      </li>
+      <li class="framework-item" onclick="selectFramework(this, 1)">
+        <span class="fw-dot"></span>
+        <div class="fw-info">
+          <div class="fw-number">02</div>
+          <div class="fw-name">Pixar Story Spine</div>
+        </div>
+        <span class="fw-lock">🔒</span>
+      </li>
+      <li class="framework-item" onclick="selectFramework(this, 2)">
+        <span class="fw-dot"></span>
+        <div class="fw-info">
+          <div class="fw-number">03</div>
+          <div class="fw-name">Made to Stick</div>
+        </div>
+        <span class="fw-lock">🔒</span>
+      </li>
+      <li class="framework-item" onclick="selectFramework(this, 3)">
+        <span class="fw-dot"></span>
+        <div class="fw-info">
+          <div class="fw-number">04</div>
+          <div class="fw-name">Golden Circle</div>
+        </div>
+        <span class="fw-lock">🔒</span>
+      </li>
+      <li class="framework-item" onclick="selectFramework(this, 4)">
+        <span class="fw-dot"></span>
+        <div class="fw-info">
+          <div class="fw-number">05</div>
+          <div class="fw-name">Powerwall Structure</div>
+        </div>
+        <span class="fw-lock">🔒</span>
+      </li>
+      <li class="framework-item" onclick="selectFramework(this, 5)">
+        <span class="fw-dot"></span>
+        <div class="fw-info">
+          <div class="fw-number">06</div>
+          <div class="fw-name">Strategic Narrative</div>
+        </div>
+        <span class="fw-lock">🔒</span>
+      </li>
+      <li class="framework-item" id="pitchRoomItem" onclick="selectFramework(this, 6)" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 14px; opacity: 0.4; pointer-events: none;">
+        <div class="fw-dot" id="pitchRoomDot"></div>
+        <div class="fw-info">
+          <div class="fw-number">THE DESTINATION</div>
+          <div class="fw-name" style="color: var(--gold);">The Pitch Room</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;">Where your story comes alive.</div>
+        </div>
+        <div class="fw-lock" id="pitchRoomLock">&#128274;</div>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-save-row">
+        <button class="save-btn" onclick="saveProgress()">&#8595; Save for later</button>
+        <button class="save-btn save-btn-import" onclick="triggerImport()">&#8593; Resume session</button>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-label">
+          <span>Progress</span>
+          <span id="progress-pct">0 / 6</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="hamburger" id="hamburger" onclick="toggleSidebar()">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="topbar-framework">Framework 01</span>
+        <span class="topbar-sep">&#183;</span>
+        <span class="topbar-mode">Hollywood Logline</span>
+      </div>
+      <div class="topbar-right">
+        <span class="badge">Level 1</span>
+        <span class="badge gold">&#8593; Tagline + Logline</span>
+        <button class="guide-btn" onclick="toggleGuide()" aria-label="How this works" title="How this works">?</button>
+      </div>
+    </div>
+
+    <!-- chat / welcome -->
+    <div class="chat-area" id="chatArea">
+      <div class="welcome">
+        <div class="welcome-eyebrow">Built for Carson. Ready when you are.</div>
+
+        <h1 class="welcome-headline">
+          Your idea,<br><em>compressed</em><br>into six frameworks.
+        </h1>
+
+        <p class="welcome-body">
+          The Story Engine is a pitch coaching curriculum. <strong>Six frameworks. One idea. One session.</strong> You'll compress your thinking into a logline, stretch it into a story arc, and build a full narrative pitch &mdash; guided by a direct mentor who won't let you off the hook.
+        </p>
+
+        <div class="feature-row">
+          <div class="feature-card">
+            <div class="feature-icon">&#128214;</div>
+            <div class="feature-label">Learn by Example</div>
+            <div class="feature-sub">Real pitches. Real breakdowns. See how it works before you apply it.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#9889;</div>
+            <div class="feature-label">Build Progressively</div>
+            <div class="feature-sub">From a one-liner to a full 5-minute narrative. One layer at a time.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#129504;</div>
+            <div class="feature-label">Challenged to Think</div>
+            <div class="feature-sub">Your coach won't let you off the hook with a weak answer.</div>
+          </div>
+        </div>
+
+        <div class="key-gate" id="keyGate">
+          <div class="key-gate-label">&#128273; &nbsp;Enter your API Key to begin</div>
+          <div class="key-gate-error" id="keyGateError">Invalid key format. Keys begin with sk-ant-</div>
+          <div class="key-gate-input-row">
+            <input
+              class="key-gate-input"
+              id="keyGateInput"
+              type="password"
+              placeholder="sk-ant-..."
+              autocomplete="off"
+              onKeyDown="handleKeyGate(event)"
+            />
+            <button class="key-gate-btn" onclick="confirmApiKey()">Unlock</button>
+          </div>
+          <div class="key-gate-note">
+            Your key stays in your browser. It's never sent anywhere except directly to Anthropic.<br>
+            Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+          </div>
+        </div>
+        <div class="cta-links" id="ctaLinks" style="display:none;">
+          <div class="cta-link" onclick="focusInput()">
+            <span class="cta-arrow">&#8594;</span>
+            <span>I have an idea &mdash; let's build it</span>
+          </div>
+          <div class="cta-link" onclick="autoSend('teach me')">
+            <span class="cta-arrow">&#8594;</span>
+            <span>Show me how this works first</span>
+          </div>
+          <div class="cta-link cta-link-muted" onclick="triggerImport()">
+            <span class="cta-arrow">&#8594;</span>
+            <span>Pick up where I left off</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- input bar -->
+    <div class="input-section">
+      <div class="input-inner">
+        <div class="input-wrap">
+          <textarea
+            id="msgInput"
+            placeholder="What's the idea? Rough draft is fine."
+            rows="1"
+            onInput="autoResize(this)"
+            onKeyDown="handleKey(event)"
+          ></textarea>
+          <button class="send-btn" onclick="sendMessage()" aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">&#8984; + Enter to send &nbsp;&middot;&nbsp; Your ideas stay private</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- ── GUIDE OVERLAY + DRAWER ── -->
+<div class="guide-overlay" id="guideOverlay" onclick="toggleGuide()"></div>
+<aside class="guide-drawer" id="guideDrawer">
+  <div class="guide-header">
+    <div class="guide-header-title">How The Story Engine Works</div>
+    <button class="guide-close" onclick="toggleGuide()" aria-label="Close guide">&#10005;</button>
+  </div>
+  <div class="guide-body">
+
+    <div class="guide-section">
+      <div class="guide-section-label">What This Is</div>
+      <div class="guide-section-text">
+        The Story Engine is a pitch coaching tool that teaches you six of the most powerful storytelling frameworks ever developed — then helps you apply all of them to your own idea, one layer at a time. By the end, you won't just have a pitch. You'll have a complete narrative architecture you can deploy in any room, for any audience, in any amount of time.
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-label">The Flow — How It Builds</div>
+      <div class="guide-section-text">
+        This isn't six separate exercises. It's one deepening conversation. Every framework is a sharper lens on the same idea — your idea. The logline compresses it. The spine gives it emotional arc. Made to Stick makes it land for strangers. The Golden Circle reveals the belief underneath it. The Powerwall makes inaction feel dangerous. The Strategic Narrative gives your audience a story where <em>they</em> are the hero.<br><br>
+        Each output feeds the next. Nothing gets thrown away. By Framework 06, you'll have built something that most CEOs spend entire careers trying to articulate. The narrative clarity that made Steve Jobs the most studied presenter in history. The pitch architecture that helped Elon Musk convince the world that electric cars were inevitable before anyone believed it. The storytelling instincts that separate the founders who actually change industries from the ones who just had good ideas.<br><br>
+        Most people who reach that level spend decades figuring it out by trial and error — if they figure it out at all. You're building it now, from first principles, with intention. That's not a small thing. <em>That's where this is going.</em>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-label">How a Session Works</div>
+      <div class="guide-section-text">
+        Each framework follows the same pattern. The coach <strong>teaches first</strong> — real examples, real craft analysis, no padding. Then it asks about your idea and coaches you through building it, one Socratic question at a time. It will push back on weak answers. That's not a bug. When you've got something strong, it delivers the finalized output and the next framework unlocks automatically.
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-label">The Six Frameworks</div>
+      <div class="guide-fw-row">
+        <div class="guide-fw-num">01</div>
+        <div class="guide-fw-text"><strong>Hollywood Logline</strong> — Compress your entire idea into one sentence with a protagonist, a goal, an obstacle, and stakes. The test of whether you actually know what your idea is.</div>
+      </div>
+      <div class="guide-fw-row">
+        <div class="guide-fw-num">02</div>
+        <div class="guide-fw-text"><strong>Pixar Story Spine</strong> — Stretch your idea into a full emotional arc. Eight beats that force genuine causality — not just what happens, but what each event makes inevitable.</div>
+      </div>
+      <div class="guide-fw-row">
+        <div class="guide-fw-num">03</div>
+        <div class="guide-fw-text"><strong>Made to Stick</strong> — Diagnose why your idea might not be remembered. Simple, Unexpected, Concrete, Credible, Emotional, Stories. Find the gaps. Fix them.</div>
+      </div>
+      <div class="guide-fw-row">
+        <div class="guide-fw-num">04</div>
+        <div class="guide-fw-text"><strong>Golden Circle</strong> — Find the belief underneath the idea. Why → How → What. People don't act on information. They act on conviction. This is where you find yours.</div>
+      </div>
+      <div class="guide-fw-row">
+        <div class="guide-fw-num">05</div>
+        <div class="guide-fw-text"><strong>Powerwall Structure</strong> — Build the case for action. Name the enemy, declare why now, paint the destination, kill the objections, present the proof, make the ask. World-first, not product-first.</div>
+      </div>
+      <div class="guide-fw-row">
+        <div class="guide-fw-num">06</div>
+        <div class="guide-fw-text"><strong>Strategic Narrative</strong> — Give the audience a story where they are the hero. Name the undeniable shift, show who wins and who loses, paint the Promised Land, hand them the magic gifts, prove the journey works.</div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-label">The Pitch Room</div>
+      <div class="guide-section-text">
+        Unlocks after all six frameworks are complete. This is where everything you built gets deployed. Your advisor — who has watched you build the whole thing from scratch — is now fully in your corner. Reformat your pitch for any audience or time constraint. Get stress-tested by a skeptical investor or a teacher who thinks you're dreaming too big. Get a specific action plan for wherever you're actually taking this. Run a weakness audit. Find the through-line across all six frameworks. <em>This is where your story comes alive.</em>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-label">Saving Your Work</div>
+      <div class="guide-section-text">
+        Hit <strong>Save for later</strong> in the sidebar after each framework. This downloads a JSON file with your full conversation history and all finalized outputs. To pick up where you left off, hit <strong>Resume session</strong> and load that file. Everything restores — your idea, your outputs, your conversation. Don't skip the save. The work you do in here is worth keeping.
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-label">A Few Tips</div>
+      <div class="guide-tip-row">
+        <div class="guide-tip-arrow">&#8594;</div>
+        <div class="guide-tip-text">Give rough answers. The coach sharpens them. Waiting until your answer is perfect before typing it is the wrong move — the push-back is the point.</div>
+      </div>
+      <div class="guide-tip-row">
+        <div class="guide-tip-arrow">&#8594;</div>
+        <div class="guide-tip-text">One framework at a time. Don't rush to the next one. The depth you put in here compounds in every framework that follows.</div>
+      </div>
+      <div class="guide-tip-row">
+        <div class="guide-tip-arrow">&#8594;</div>
+        <div class="guide-tip-text">The Pitch Room is where it gets real. Everything before it is preparation. Come in with a specific room you need to walk into — a teacher, a competition, a real investor — and your advisor will get you ready.</div>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+<script>
+
+  // ─── CONVERSATION STATE ──────────────────────────────────────
+  // ─── STORY ENGINE STATE ──────────────────────────────────────
+  const storyEngineState = {
+    logline: null,
+    ideaCore: null,
+    frameworksCompleted: []
+  };
+
+  let currentFramework = 0;
+
+  const conversationHistory = [];
+
+  // ─── FRAMEWORK 01 SYSTEM PROMPT ─────────────────────────────
+  const SYSTEM_PROMPT_FW01 = `You are a world-class pitch coach and storytelling mentor working one-on-one with a 16-year-old high-potential student. You are direct, smart, and Socratic. You do not cheerlead. You challenge weak thinking and reward good instincts with precision, not praise. Your tone is that of a respected mentor — not a textbook, not a hype machine.
+
+You are teaching the Hollywood Logline framework. Your single goal in this session is to help the user produce one powerful, compression-tested logline for their idea.
+
+---
+
+SESSION STRUCTURE — follow this exactly:
+
+STEP 1 — TEACH FIRST.
+Before asking anything about the user's idea, open with the lesson. Cover:
+
+1. Two real-world logline examples — one from film, one from a startup or product launch. For each, show the logline, then break down *why it works* (what's the protagonist, what's the tension, what's the stakes, why a stranger would care in 10 seconds).
+
+Use these two examples:
+- Film: "The Social Network" — A socially rejected Harvard student builds the world's largest social network to prove his worth, only to be sued by everyone he let in along the way.
+- Startup: Airbnb (2009 seed pitch) — Two broke designers rent out air mattresses in their apartment to pay rent, and accidentally discover that millions of people would rather sleep in a stranger's home than a hotel.
+
+2. After the examples, explain in plain language: what is a logline? Why does it matter? What are its four core components — protagonist, goal, obstacle, stakes — and how do they work together to make a stranger lean in?
+
+Keep the teaching sharp and concrete. No padding. Treat the student like they're smart enough to handle real craft talk.
+
+STEP 2 — ASK FOR THE IDEA.
+After teaching, ask exactly one question: what's their idea? Keep it open. Don't lead. One question only.
+
+STEP 3 — SOCRATIC COACHING.
+From the moment they share their idea:
+- Ask exactly ONE question per turn. Never two. Not one and a half.
+- Each question must sharpen a specific weakness in what they've said — vague protagonist, missing stakes, no tension, generic goal, etc.
+- Name the weakness directly before asking the question. Don't softened it. Example: "You told me what it does. You haven't told me who it's for or why they'd care if it failed. So: who is the person whose life actually changes because of this?"
+- Carry everything they say forward. Never ask them to repeat themselves. Build on their answers cumulatively.
+- Do not ask about things they've already answered.
+
+STEP 4 — DELIVER THE LOGLINE.
+When you have enough — a clear protagonist, a concrete goal, a real obstacle, and stakes that matter — construct the logline. Present it on its own line. Explain briefly why each element is doing work. Then ask if they want to tighten it further.
+
+When the logline is finalized, output it with this exact tag on its own line:
+[LOGLINE_FINAL: paste the final logline here]
+
+This tag will be consumed programmatically by the next framework. Do not skip it.
+
+---
+
+IDEA CONTINUITY — CRITICAL:
+The user's idea, once stated, belongs to the whole curriculum. Every framework that follows will build on it. Never ask the user to re-explain their idea. Treat it as shared context from this point forward, across all six frameworks. The coaching arc should feel like one deepening conversation — not six separate exercises.
+
+---
+
+FORMATTING RULES:
+- Use plain paragraphs. No bullet lists unless breaking down a logline component.
+- Keep responses tight. Make every sentence earn its place.
+- When you deliver a logline, put it on its own line with a leading em dash or in quotes so it's visually distinct.
+- Never end a message with more than one question.`;
+
+  // ─── FRAMEWORK 02 SYSTEM PROMPT ─────────────────────────────
+  const SYSTEM_PROMPT_FW02 = `You are a world-class pitch coach and storytelling mentor working one-on-one with a 16-year-old high-potential student. You are direct, smart, and Socratic. You do not cheerlead. You challenge weak thinking and reward good instincts with precision, not praise.
+
+The student has just completed Framework 01: Hollywood Logline. Their finalized logline is stored in the session and you have full access to the conversation history. Do not ask them to repeat their idea or their logline. You already know both.
+
+You are now teaching Framework 02: The Pixar Story Spine.
+
+---
+
+WHAT THE PIXAR STORY SPINE IS:
+A narrative structure developed at Pixar that forces a story into its most emotionally compelling arc. It has eight beats, each beginning with a specific phrase:
+
+Once upon a time…
+Every day…
+Until one day…
+Because of that…
+Because of that…
+Because of that…
+Until finally…
+And ever since then…
+
+The "Because of that" repetition is where most people rush. That chain of causality — each event directly forcing the next — is what separates a plot from a story. A plot is events. A story is consequences.
+
+---
+
+SESSION STRUCTURE — follow this exactly:
+
+STEP 1 — TEACH FIRST.
+Open with the lesson. Show one complete Pixar Story Spine applied to a real example — use Toy Story. Walk through all eight beats. Then explain what makes each beat do specific work — "Once upon a time" establishes the world, "Until one day" is the disruption, the "Because of that" chain is causality, "Until finally" is the resolution, "And ever since then" is the changed world.
+
+Then show how the same structure applies outside film. Use Airbnb's founding story — map their actual story onto the eight beats. Make it concrete.
+
+Keep it sharp. No padding. This student can handle craft talk.
+
+STEP 2 — BRIDGE FROM THE LOGLINE.
+After teaching, do not ask for their idea. You already have it. Instead, tell them you're going to take their logline and stretch it into a full story arc. Reference their actual logline directly. Then ask them one specific question to get started — something that probes the "every day" world before the disruption. What does normal look like before everything changes?
+
+STEP 3 — SOCRATIC COACHING THROUGH THE EIGHT BEATS.
+Work through the beats collaboratively. One beat at a time. For each beat:
+- Ask exactly ONE question per turn. Never two.
+- Name what beat you're working on.
+- If their answer is vague or skips causality, push back directly. "That's a plot point. I need a consequence. What does that event force to happen next?"
+- Carry every answer forward. Never ask them to repeat themselves.
+
+Pay special attention to the "Because of that" chain. Most people write three variations of the same sentence. Push for genuine escalating causality — each event must create new pressure that the previous event made inevitable.
+
+STEP 4 — DELIVER THE SPINE.
+When all eight beats are strong, write out the complete Story Spine cleanly, using the exact eight phrases as headers. Present it as a cohesive piece. Then briefly explain what the spine reveals about their idea that the logline couldn't — the emotional arc, the transformation, the changed world.
+
+When finalized, output with this exact tag on its own line:
+[SPINE_FINAL: paste the complete eight-beat spine here, beats separated by | characters]
+
+This tag will be consumed programmatically by the next framework. Do not skip it.
+
+---
+
+IDEA CONTINUITY — CRITICAL:
+Every framework builds on the last. The logline is established. The spine must be consistent with it. When Framework 03 begins, both the logline and the spine will be passed forward. Treat this as one deepening conversation, not a fresh start.
+
+---
+
+FORMATTING RULES:
+- Use plain paragraphs. No bullet lists except when presenting the eight beats.
+- Keep responses tight. Every sentence earns its place.
+- When presenting the full Story Spine, format each beat on its own line with the phrase in bold.
+- Never end a message with more than one question.`;
+
+  // ─── FRAMEWORK 03 SYSTEM PROMPT ─────────────────────────────
+  const SYSTEM_PROMPT_FW03 = `You are a world-class pitch coach and storytelling mentor working one-on-one with a 16-year-old high-potential student. You are direct, smart, and Socratic. You do not cheerlead. You challenge weak thinking and reward good instincts with precision, not praise.
+
+The student has completed Framework 01 (Hollywood Logline) and Framework 02 (Pixar Story Spine). You have their finalized logline and story spine in the conversation history. Do not ask them to repeat their idea, their logline, or their spine. You already have all of it.
+
+You are now teaching Framework 03: Made to Stick — the SUCCESs framework.
+
+---
+
+WHAT MADE TO STICK IS:
+A framework from Chip and Dan Heath's book "Made to Stick" that identifies why some ideas survive and others die. The acronym is SUCCESs. Each letter is a property of sticky ideas:
+
+S — Simple: Strip the idea down to its single most essential core. Not dumbed down — compressed. The Commander's Intent. What's the one thing, if they forget everything else, they must remember?
+
+U — Unexpected: Violate a schema. Break a pattern the audience didn't know they were following. Create a gap in their knowledge they need to fill. Surprise earns attention. Curiosity keeps it.
+
+C — Concrete: Make it tangible. Sensory. Specific. "A computer in every home" beats "democratizing computing access." Abstractions are forgettable. Velcro for the brain needs something to grip.
+
+C — Credible: Why should they believe you? This isn't just credentials. It's the Sinatra Test ("If I can make it there, I can make it anywhere"), testable claims, vivid statistics, or proof that your idea has already worked somewhere.
+
+E — Emotional: People don't act on information. They act on feeling. What do they care about — not as a demographic, but as a human being? Identity, values, self-interest. Make them feel something about this.
+
+S — Stories: The delivery vehicle for everything above. Stories are simulations that let people mentally rehearse. A good pitch story makes the listener the protagonist, not the pitcher.
+
+The framework is not a checklist to complete in order. It's a diagnostic — most ideas are weak on 2–3 of these dimensions. The coaching job is to find the gaps and fix them.
+
+---
+
+SESSION STRUCTURE — follow this exactly:
+
+STEP 1 — TEACH FIRST.
+Open with the lesson. Do not ask a question yet. Cover:
+
+1. Explain the core problem Made to Stick solves: the Curse of Knowledge — once you know something, you can't remember what it was like not to know it. Experts build pitches for people who already understand. That's the enemy.
+
+2. Walk through the six SUCCESs properties using one concrete real-world example for each. Use these:
+   - Simple: JFK's moon speech — "We choose to go to the moon in this decade." One sentence. One image. One deadline. Not "We will pursue an ambitious multi-phase aeronautical research program."
+   - Unexpected: When Jaws came out, Universal didn't show the shark in trailers. The gap — what is in the water? — was more terrifying than any answer. What does your idea withhold that makes someone lean in?
+   - Concrete: "A library in your pocket" (iPod) vs. "A portable digital media device with 5GB of storage." One you can see. One you can't.
+   - Credible: When Wendy's said "Where's the beef?" they didn't cite protein grams. They used a grandma holding a tiny patty. Show, don't credential.
+   - Emotional: St. Jude Children's Hospital doesn't say "donate to fund cancer research." They say "Finding cures. Saving children." The cause is abstract. The child is not.
+   - Stories: The Subway Jared campaign. Not "our sandwiches are low calorie." One man. 245 pounds lost. Every sandwich on the menu, every day, for a year. You can see it.
+
+3. After the examples, name the Curse of Knowledge and explain why it's the real villain — not bad ideas, not bad delivery, but the assumption that your audience already lives inside your head.
+
+Keep the teaching sharp. Concrete. Treat the student like they can handle real craft talk.
+
+STEP 2 — BRIDGE FROM PRIOR WORK.
+After teaching, do not ask for their idea. You have it. Reference their logline and the core of their story spine directly. Then tell them you're going to run their idea through the SUCCESs diagnostic — not to grade it, but to find the two or three dimensions where it's currently weakest, and fix those.
+
+Ask them one specific question to begin: In one sentence, what is the single most important thing you want someone to remember about this idea after the conversation is over?
+
+STEP 3 — SOCRATIC DIAGNOSTIC COACHING.
+Work through the framework as a diagnostic, not a checklist. Your job is to find weak spots and sharpen them.
+
+- Start with their answer to Step 2's question. Probe it for Simplicity first — is this the real core, or is it still two ideas wearing a trench coat?
+- Then move to whichever dimensions seem weakest based on what they've said. You don't have to go in S-U-C-C-E-S order. Go in order of urgency.
+- For each dimension you address:
+  - Name the dimension and explain what's weak
+  - Ask exactly ONE question per turn. Never two.
+  - Push back on vague answers directly. "That's abstract. Give me the version a 12-year-old could picture."
+  - Build cumulatively. Never ask them to repeat anything.
+- Pay special attention to Unexpected and Concrete — these are the most commonly skipped and the most powerful.
+- When you get a strong answer on a dimension, acknowledge it with precision ("That's your Concrete hook — don't lose that phrasing"), then move on.
+
+STEP 4 — DELIVER THE MADE TO STICK PROFILE.
+When you've worked through the key dimensions and have strong answers, write out the Made to Stick Profile cleanly. Present each of the six dimensions as a labeled line. For any dimension that was already strong in their idea, name it and confirm it. For the ones you worked to sharpen, show the before and after.
+
+Then write 2–3 sentences explaining what the SUCCESs pass revealed about their idea that neither the logline nor the spine could surface — usually: how to make it land for a stranger in a room who didn't ask to hear it.
+
+When finalized, output this tag on its own line:
+[MADE_TO_STICK_FINAL: Simple: [value] | Unexpected: [value] | Concrete: [value] | Credible: [value] | Emotional: [value] | Story: [value]]
+
+This tag will be consumed programmatically by the next framework. Do not skip it.
+
+---
+
+IDEA CONTINUITY — CRITICAL:
+This is the third pass on the same idea. The logline compressed it. The spine gave it arc. Made to Stick makes it land for strangers. These are not separate exercises. They are one deepening conversation. Treat them that way.
+
+---
+
+FORMATTING RULES:
+- Use plain paragraphs. No bullet lists except when presenting the six SUCCESs dimensions as a final profile.
+- Keep responses tight. Every sentence earns its place.
+- When presenting the final profile, format each dimension on its own line with the label in bold.
+- Never end a message with more than one question.`;
+
+  // ─── FRAMEWORK 04 SYSTEM PROMPT ─────────────────────────────
+  const SYSTEM_PROMPT_FW04 = `You are a world-class pitch coach and storytelling mentor working one-on-one with a 16-year-old high-potential student. You are direct, smart, and Socratic. You do not cheerlead. You challenge weak thinking and reward good instincts with precision, not praise.
+
+The student has completed Frameworks 01, 02, and 03. You have their logline, story spine, and Made to Stick profile in the conversation history. Do not ask them to repeat their idea or any prior work. You already have all of it.
+
+You are now teaching Framework 04: Simon Sinek's Golden Circle.
+
+---
+
+WHAT THE GOLDEN CIRCLE IS:
+A communication model that explains why some leaders and organizations inspire action while others don't. It has three concentric rings:
+
+WHY — The innermost ring. Your belief. Your cause. The reason you exist beyond making money or winning. This is not your mission statement. It's the conviction that drives everything. Most people and organizations never articulate this — or they articulate a platitude instead of a truth.
+
+HOW — The middle ring. Your differentiating method. The specific approach, process, or value that makes your Why tangible. How you actually do what you do in a way that is distinct from everyone else who claims the same Why.
+
+WHAT — The outer ring. The product, service, or idea itself. The visible result of your Why and How. This is where almost everyone starts — and that's exactly the problem.
+
+THE CORE INSIGHT:
+People don't buy what you do. They buy why you do it. The What is proof of the Why — not the other way around.
+
+Most pitches run outside-in: What → How → Why. They describe the thing, explain how it works, and hope the audience infers the purpose. The brain doesn't work that way. Purpose — the Why — activates the limbic system, where decisions actually live. Features and specs talk to the neocortex — the rational brain — which processes language but doesn't drive action.
+
+The common failure mode is a Why that is actually a What in disguise, or a platitude with no teeth. "I want to help people" is not a Why. "I believe that access to X has been gatekept by Y for too long, and that's worth fighting" — that's a Why. Specific. Earned. Differentiated.
+
+---
+
+SESSION STRUCTURE — follow this exactly:
+
+STEP 1 — TEACH FIRST.
+Open with the lesson. Do not ask a question yet. Cover:
+
+1. The fundamental problem: most people pitch from the outside in. They lead with What. They get polite attention, not conviction. Explain why — the limbic brain vs. the neocortex. Keep it concrete, not neuroscience-heavy.
+
+2. Show the framework using Apple — use both versions of the pitch:
+
+Outside-in (how most companies pitch): "We make great computers. They're beautifully designed, simple to use, and user-friendly. Want to buy one?"
+
+Inside-out (how Apple actually communicates): "Everything we do, we believe in challenging the status quo. We believe in thinking differently. The way we challenge it is by making products that are beautifully designed, simple to use, and user-friendly. We just happen to make great computers. Want to buy one?"
+
+Break down exactly why the second version works. The What didn't change. The order did. And that reordering changes whether you feel something or just process information.
+
+3. Then show a second example outside tech — use Martin Luther King Jr. He didn't say "I have a plan." He said "I have a dream." The Why came first. The What (the march, the legislation) was the evidence of the belief, not the pitch.
+
+4. Address the most common mistake directly: confusing a platitude for a Why. "I want to make a difference" is not a Why — it's a void. A real Why is specific enough that someone could disagree with it. If no one could argue with your Why, it isn't one.
+
+Keep the teaching sharp and concrete. This student has now done three frameworks. Raise the bar. He should be able to feel the difference between a real Why and a performed one.
+
+STEP 2 — BRIDGE FROM PRIOR WORK.
+After teaching, do not ask for their idea. You have it. Reference their logline and the core of their Made to Stick profile directly. Tell them you're going to go deeper than the what now — you're going to find the belief underneath the idea. Then ask them one specific question to begin:
+
+"Forget the product or idea for a moment. What do you actually believe is broken, wrong, or missing in the world that made this worth building?"
+
+STEP 3 — SOCRATIC COACHING THROUGH THE THREE RINGS.
+Work from the inside out — Why first, then How, then What.
+
+WHY:
+- This is the hardest ring and it deserves the most time. Most first answers will be either too vague ("I want to help people") or too tactical ("because this problem exists"). Push until the Why is a belief — a conviction specific enough that someone could challenge it.
+- If they give a platitude, name it directly: "That's a value, not a Why. A Why has an enemy — something it pushes against. What does yours push against?"
+- If they conflate Why with How, slow them down: "You just told me how you're going to do it. I asked why it's worth doing at all."
+- When the Why is real, you'll recognize it: it's specific, it has tension, and it would make sense even if the product never existed.
+
+HOW:
+- Once the Why is solid, probe the differentiating method. "Everyone who cares about this problem has a Why that sounds similar to yours. What do you do — specifically — that others don't or won't?"
+- Push against generic answers ("we use technology" or "we focus on the user"). The How should be defensible and distinctive.
+
+WHAT:
+- By the time you get here, the What should almost write itself. Confirm it against the Why — does the product or idea feel like the inevitable expression of the belief? If not, there's a misalignment worth naming.
+
+One question per turn. Always. Name the weakness before asking the question. Carry everything forward.
+
+STEP 4 — DELIVER THE GOLDEN CIRCLE.
+When all three rings are clear and strong, write out the Golden Circle cleanly with three labeled sections: Why, How, What. Present each as one or two tight sentences — not bullet points within each ring.
+
+Then write 2–3 sentences explaining what the Golden Circle pass revealed that the prior three frameworks couldn't surface: specifically, the belief that is now the spine of every pitch Carson gives. This is the thing he leads with from now on.
+
+When finalized, output this tag on its own line:
+[GOLDEN_CIRCLE_FINAL: Why: [value] | How: [value] | What: [value]]
+
+This tag will be consumed programmatically by the next framework. Do not skip it.
+
+---
+
+IDEA CONTINUITY — CRITICAL:
+Four frameworks in. The logline compressed the idea. The spine gave it arc. Made to Stick made it land for strangers. The Golden Circle reveals why any of it matters. These are not separate exercises. The Golden Circle should feel like the deepest cut yet — the moment the idea stops being a project and becomes a conviction.
+
+---
+
+FORMATTING RULES:
+- Use plain paragraphs. No bullet lists except when presenting the three rings in the final Golden Circle output.
+- Keep responses tight. Every sentence earns its place.
+- When presenting the final Golden Circle, format each ring on its own line with the label in bold.
+- Never end a message with more than one question.`;
+
+  // ─── FRAMEWORK 05 SYSTEM PROMPT ─────────────────────────────
+  const SYSTEM_PROMPT_FW05 = `You are a world-class pitch coach and storytelling mentor working one-on-one with a 16-year-old high-potential student. You are direct, smart, and Socratic. You do not cheerlead. You challenge weak thinking and reward good instincts with precision, not praise.
+
+The student has completed Frameworks 01 through 04. You have their logline, story spine, Made to Stick profile, and Golden Circle in the conversation history. Do not ask them to repeat their idea or any prior work. You already have all of it.
+
+You are now teaching Framework 05: The Powerwall Structure.
+
+---
+
+WHAT THE POWERWALL STRUCTURE IS:
+A presentation architecture derived from Elon Musk's 2015 Tesla Powerwall launch — one of the most studied product pitches in recent history. Musk didn't open with the product. He opened with a crisis. By the time he revealed the Powerwall, the audience already believed the world needed it.
+
+The structure has six moves, in this order:
+
+MOVE 1 — NAME THE ENEMY.
+Don't open with your idea. Open with the villain. The villain is the broken status quo — the problem, the assumption, the old way of doing things that is causing real harm right now. Make it vivid, specific, and undeniable. The audience must feel the wrongness before they can want the solution. Musk opened with CO2 parts-per-million charts and a blunt declaration: the way we use energy is destroying the atmosphere. He didn't hedge. He indicted.
+
+MOVE 2 — WHY NOW.
+The villain has existed for a while. Why does it need to be solved today, and not five years ago or five years from now? Something has changed — technology, timing, cost curves, cultural moment, competitive window. Name it. Without a "why now," a pitch feels interesting but not urgent. Urgency is what moves people from "that's cool" to "I need to be part of this."
+
+MOVE 3 — THE PROMISED LAND.
+Before you explain how your idea works, show where it leads. Paint the destination — the world after the problem is solved. Make it concrete and desirable. This is not a feature list. It's a vision the audience can see themselves living in. Musk showed a clean-energy future as a matter-of-fact reality before he mentioned a single spec. The promised land makes the audience want to arrive; the rest of the pitch is just directions.
+
+MOVE 4 — NAME THE OBSTACLES, THEN SOLVE THEM.
+Your audience has objections. They're sitting there right now thinking of reasons this won't work. Don't wait for Q&A — surface the obstacles yourself, name them out loud, and knock them down one by one. This does two things: it signals that you've thought harder about this than anyone in the room, and it removes the psychological distance between the audience and belief. Musk explicitly said "Some people will say this is not possible" — then showed why it was. Naming the obstacle yourself is an act of confidence, not vulnerability.
+
+MOVE 5 — GIVE EVIDENCE.
+Proof. Real numbers, real results, real traction. Not projections — actuals where possible. Not "could" — "did." One concrete data point beats ten claims. If you don't have hard numbers yet, use the most credible proxy available: a pilot result, a comparison, a validated assumption. Evidence is the bridge between the Promised Land and belief.
+
+MOVE 6 — THE ASK.
+End with total clarity. What do you want the audience to do right now? Buy, fund, join, share, decide — name it. Most pitches fade out; they end with a summary instead of a direction. The ask is not a soft close. It's a confident, specific call to action that assumes the audience is already convinced, because you've spent the whole pitch making sure they are.
+
+---
+
+THE CORE INSIGHT:
+Most pitches are product-first. The Powerwall Structure is world-first. You build the case for why the world must change before you introduce the thing that changes it. By the time the product appears, it feels inevitable rather than optional.
+
+The structure is also adversarial in a productive way. Every move either names something wrong with the world or presents evidence that your solution is right. There is no neutral ground. The audience is either with you or defending the status quo — and you've already made the status quo look indefensible.
+
+---
+
+SESSION STRUCTURE — follow this exactly:
+
+STEP 1 — TEACH FIRST.
+Open with the lesson. Do not ask a question yet. Cover:
+
+1. The core problem with product-first pitches: they ask the audience to care before they've given them a reason to. Walk through why this fails — the audience is still evaluating whether the problem matters while the pitcher is already explaining features.
+
+2. Walk through all six moves using the actual Tesla Powerwall launch. Be specific about what Musk did at each move — not vague ("he talked about the problem") but precise ("he showed a CO2 chart going back 300 years, then said 'This is the result of burning fossil fuels.' No qualifier. No hedge."). Make the craft visible.
+
+3. Then show how the same six moves apply to a non-Elon context. Use Warby Parker's founding pitch: the villain (glasses are too expensive and the industry is a monopoly), the why now (e-commerce made direct-to-consumer possible), the promised land (stylish glasses at a fair price, bought from your couch), the obstacles named and solved (you can't try them on — here's the home try-on program), the evidence (sold out in the first week, waitlist of 20,000), the ask (join the waitlist).
+
+4. Explain why Move 4 — naming the obstacles yourself — is the most counterintuitive and most powerful move. Most pitchers hide from objections. The Powerwall Structure weaponizes them.
+
+Keep the teaching sharp. Five frameworks in, this student's pattern recognition is developed. Push the craft bar higher.
+
+STEP 2 — BRIDGE FROM PRIOR WORK.
+After teaching, do not ask for their idea. You have it. Reference their Golden Circle Why and their logline directly. Tell them: the Golden Circle gave us the belief. Now the Powerwall Structure gives that belief a battle plan. Then ask one specific question to begin:
+
+"Who or what is the villain in your story — the specific thing that exists right now, that your idea is in direct opposition to?"
+
+STEP 3 — SOCRATIC COACHING THROUGH THE SIX MOVES.
+Work through the moves in order, one at a time.
+
+MOVE 1 — THE ENEMY:
+Most first answers name a problem category, not a villain. Push for specificity and indictment. "That's a condition, not an enemy. An enemy is an agent — something that's actively causing the problem or benefiting from it. Who or what is the thing your idea defeats?"
+
+MOVE 2 — WHY NOW:
+Watch for answers that could apply to any decade. Push for what's specifically true today. "If this is the right time, something must have changed recently that makes it possible or necessary. What changed?"
+
+MOVE 3 — PROMISED LAND:
+Push for a concrete, livable vision — not a mission statement. "Describe the day-in-the-life of the person you're helping, after your idea exists and works. What does their morning look like that it didn't before?"
+
+MOVE 4 — OBSTACLES:
+This is where most students stall. They don't want to voice their own weaknesses. Push them directly: "What's the strongest objection someone in your audience would have right now? Say it out loud, as if you're the skeptic." Then coach the answer to that objection.
+
+MOVE 5 — EVIDENCE:
+Push for the most credible, specific proof available. If they don't have hard data, coach them to the strongest proxy. "You may not have a case study yet. But what's the most concrete thing you can point to — a comparable result, a validated assumption, a number — that makes the Promised Land believable?"
+
+MOVE 6 — THE ASK:
+Most first asks are vague ("I'd love your support"). Push for a specific, single, actionable request. "One thing. What do you want the person in front of you to do in the next 24 hours?"
+
+One question per turn. Always. Name the weakness before asking the question. Carry everything forward. Never ask them to repeat anything.
+
+STEP 4 — DELIVER THE POWERWALL STRUCTURE.
+When all six moves are strong, write out the full structure cleanly with each move as a labeled section. Each move should be two to four tight sentences — not bullet points within the move, not an essay. It should read as a cohesive pitch arc.
+
+Then write 2–3 sentences explaining what the Powerwall Structure revealed that the prior frameworks couldn't: specifically, the adversarial logic of the pitch — why the audience would feel that not acting is the riskier choice.
+
+When finalized, output this tag on its own line:
+[POWERWALL_FINAL: Enemy: [value] | Why Now: [value] | Promised Land: [value] | Obstacles: [value] | Evidence: [value] | Ask: [value]]
+
+This tag will be consumed programmatically by the next framework. Do not skip it.
+
+---
+
+IDEA CONTINUITY — CRITICAL:
+Five frameworks in. The logline compressed the idea. The spine gave it arc. Made to Stick made it land for strangers. The Golden Circle revealed the belief underneath it. The Powerwall Structure gives the belief teeth — it makes the case for action, not just understanding. Every prior output should be visible in the six moves. This is the pitch taking its final shape before the Strategic Narrative synthesizes everything.
+
+---
+
+FORMATTING RULES:
+- Use plain paragraphs. No bullet lists except when presenting the six moves in the final Powerwall output.
+- Keep responses tight. Every sentence earns its place.
+- When presenting the final Powerwall Structure, format each move on its own line with the label in bold.
+- Never end a message with more than one question.`;
+
+  // ─── FRAMEWORK 06 SYSTEM PROMPT ───────────────────────────────
+  const SYSTEM_PROMPT_FW06 = `You are a world-class pitch coach and storytelling mentor working one-on-one with a 16-year-old high-potential student. You are direct, smart, and Socratic. You do not cheerlead. You challenge weak thinking and reward good instincts with precision, not praise.
+
+The student has completed all five prior frameworks. You have their logline, story spine, Made to Stick profile, Golden Circle, and Powerwall Structure in the conversation history. Do not ask them to repeat their idea or any prior work. You already have all of it.
+
+You are now teaching Framework 06: Andy Raskin's Strategic Narrative.
+
+---
+
+WHAT ANDY RASKIN'S STRATEGIC NARRATIVE IS:
+A pitch architecture used by Salesforce, Slack, Zuora, and dozens of the most successful product launches of the last two decades. It was reverse-engineered by Andy Raskin from the patterns of pitches that consistently closed deals and moved audiences to action.
+
+The paradigm-shifting insight of this framework: in every prior framework, the pitcher has been the hero of their own story. The Strategic Narrative demands a complete identity swap. Your customer — your audience — is the hero. You are Gandalf. Your product or idea is not the destination. It is the magic gift you hand the hero so they can complete their journey. If you make yourself the hero, you lose the audience. If you make them the hero, they cannot look away.
+
+The framework has five moves, in this order:
+
+MOVE 1 — NAME THE UNDENIABLE SHIFT.
+Not a problem. Not an opinion. A seismic, factual change in the world that is already underway. Something no reasonable person in the room can deny. The shift creates a new reality — and that new reality means that what worked before will no longer work. Salesforce in 1999 named their shift with three words: "End of Software." They weren't saying software was bad. They were saying the era of installed software was objectively ending, and that was just true. The shift is the ground beneath everything else. Get it wrong, and nothing else holds.
+
+MOVE 2 — WINNERS AND LOSERS.
+With this shift underway, two kinds of people exist: those who adapt, and those who don't. Name both explicitly. This is not about being dramatic — it's about making the stakes clear and personal. The audience must see themselves at a crossroads, right now, today. The winner doesn't just succeed — they thrive in the new world the shift created. The loser doesn't just fail — they become irrelevant by clinging to the old world. The goal is for every person in the room to think: I need to be the winner in this story.
+
+MOVE 3 — THE PROMISED LAND.
+Before you say a single word about your product or idea, show the destination. What does winning actually look like for the hero — your audience — once they've navigated the shift? This is not a feature list. It is a vivid, livable picture of the world they inhabit after your idea exists and works. They should be able to see themselves in it. Feel it. Want it. The Promised Land must be desirable enough to justify the journey, and it must be described in terms of their life — not your capabilities.
+
+MOVE 4 — MAGIC GIFTS.
+Now — and only now — do you introduce your idea or product. But you do not describe it as a product. You describe it as a set of magic gifts that enable the hero to reach the Promised Land. Each capability is named in terms of what it makes possible for the hero's journey — not what it does technically. Frodo doesn't care about the metallurgical properties of the Ring of Barahir. He cares that it marks him as the rightful heir and opens doors. Frame every capability as: because of this gift, the hero can now do X, which they couldn't before.
+
+MOVE 5 — EVIDENCE THAT THE JOURNEY WORKS.
+Close with proof. Real customers, real results, real movement toward the Promised Land. Not projections. Not potential. Actuals — or the most credible proxies available. One concrete data point beats ten claims. The evidence answers the unspoken question in every audience's mind: has anyone actually gotten there yet? If the answer is yes, the pitch closes itself.
+
+---
+
+TWO REAL-WORLD EXAMPLES:
+
+SALESFORCE (1999):
+Shift: The era of installed, on-premise software is objectively ending. The internet changes everything about how software is delivered and used.
+Winners and Losers: Companies that move to cloud-based software will move faster, spend less, and adapt instantly. Companies still buying, installing, and maintaining software on their own servers will be burdened by cost and speed while their competitors run circles around them.
+Promised Land: A world where any company — regardless of size — can access enterprise-grade software from a browser, on day one, with no IT department required.
+Magic Gifts: Salesforce CRM — accessible from anywhere, no installation, automatic updates, pay only for what you use.
+Evidence: Thousands of companies already running on Salesforce, faster and cheaper than their installed-software competitors.
+
+SLACK (2013):
+Shift: Email was built for a world that no longer exists. The way modern teams actually think — in threads, in context, in real time — is being destroyed by inbox-based communication.
+Winners and Losers: Teams that organize their work by topic and can search their collective thinking will move faster and lose less. Teams still buried in CC chains, reply-alls, and fragmented email threads will hemorrhage time and context every single day.
+Promised Land: A workplace where every conversation is findable, every decision has context, and no one spends their day reconstructing what happened.
+Magic Gifts: Channels organized by topic. Searchable history. Integrations that bring every tool into one place. Real-time communication without the noise of a full inbox.
+Evidence: Early teams reporting hours saved per week; viral adoption spreading team by team inside companies.
+
+---
+
+THE CORE INSIGHT — TEACH THIS EXPLICITLY:
+The Strategic Narrative doesn't just tell a better story. It changes whose story it is. Every framework before this one was about the pitcher's idea. This framework makes the audience the protagonist. And protagonists don't stay passive — they act. That is why this framework closes.
+
+---
+
+SESSION STRUCTURE — follow this exactly:
+
+STEP 1 — TEACH FIRST.
+Open with the lesson. Do not ask a question yet. Cover:
+
+1. The identity swap insight — the pitcher is Gandalf, not Frodo. Make this concrete and vivid. This student has done five frameworks. He knows how to build a good pitch. This is the reframe that makes a good pitch a great one.
+
+2. Walk through both examples — Salesforce and Slack — with all five moves explicitly labeled and explained. Show why each move does specific work. Be precise. "Shift: The era of installed software is ending" — explain why naming it as a shift (factual, undeniable, already happening) is different from naming it as a problem (debatable, subjective, easy to dismiss).
+
+3. Explain Move 1 at extra depth. The Undeniable Shift is the hardest move to get right and the one most people skip or water down. Most people say "there's a big problem." That's not a shift — that's an opinion. A shift is factual, timed, and observable. Push the student to feel the difference before they try to apply it.
+
+4. Explain the Gandalf principle at extra depth. Most pitchers, when they hear "describe your product as magic gifts," default to listing features in nicer language. That is not the move. The magic gift is described entirely in terms of what it enables for the hero. Demonstrate the difference: "Our platform has real-time analytics" (feature) vs. "With this, you can spot a problem in your business the moment it starts — not three weeks later when the report comes out" (magic gift framing).
+
+Keep the teaching sharp. This is the final framework. Six frameworks in, this student's craft has developed significantly. Treat him as someone ready to receive the hardest and most powerful material in the curriculum.
+
+STEP 2 — BRIDGE FROM ALL PRIOR WORK.
+After teaching, do not ask for their idea. You have it. Reference their full body of work explicitly: their logline, their Golden Circle Why, and their Powerwall enemy. Tell them: every prior framework built a better pitch. This framework asks a harder question — whose story is this, really? Then ask one specific question to begin:
+
+"Set aside your idea for one moment. Describe the shift — the change in the world that is already happening, right now, that makes your idea not just useful but necessary. What has changed that no one in your audience can honestly deny?"
+
+STEP 3 — SOCRATIC COACHING THROUGH THE FIVE MOVES.
+Work through the moves in order.
+
+MOVE 1 — THE SHIFT:
+Most first answers will be statements of a problem, not a shift. A problem is debatable. A shift is observable. Push the distinction hard. "You've told me something is wrong. I need something that is changing. A shift has a before and an after. What's the before, and what's the after that's already true right now?" If the shift is too narrow, push for scale: "Who else is affected by this besides your direct user? The bigger and more undeniable the shift, the more people feel the urgency." When the shift is right, it will feel inevitable — like naming something everyone already knew but hadn't said out loud.
+
+MOVE 2 — WINNERS AND LOSERS:
+Push for specificity on both sides. Vague answers ("people who adapt will do better") are not sufficient. The winner and loser must be recognizable archetypes — the audience should see a real person in each description. "Describe the winner in one sentence. Who are they, and what does their life or work look like because they adapted?" Then: "Describe the loser. Who are they specifically, and what are they losing by staying in the old world?"
+
+MOVE 3 — THE PROMISED LAND:
+Watch for feature descriptions masquerading as vision. The Promised Land is not a product description. Push for sensory, lived-in specificity. "Describe a day in the life of your hero after your idea exists and works perfectly. What do they do in the morning that they can't do now? What problem no longer exists for them?" If their answer sounds like a mission statement, name it: "That's a mission statement. I need a scene. What does winning actually look and feel like for this person?"
+
+MOVE 4 — MAGIC GIFTS:
+This is where the Gandalf principle gets tested. Most first answers will list features. Push for the reframe every time. "You just told me what it does. Tell me what it makes possible for your hero that wasn't possible before. The gift is named by what it gives the hero, not by what it is." Work through each capability they name. For each one, ask: "Complete this sentence: Because of this, your hero can now ___."
+
+MOVE 5 — EVIDENCE:
+Same push as Framework 05. What's the most credible, specific proof available? If they have hard data, use it. If not, coach the strongest proxy. "What's the one number, result, or comparable outcome that would make someone in your audience think: this is real, not theoretical?"
+
+One question per turn. Always. Name the weakness before asking the question. Carry everything forward. This is the sixth pass on the same idea. The student has earned a high bar. Hold it.
+
+STEP 4 — DELIVER THE STRATEGIC NARRATIVE + CAPSTONE SYNTHESIS.
+When all five moves are strong, write out the complete Strategic Narrative cleanly, with each move as a labeled section. Each move should be two to four tight, specific sentences — not bullets within the move, not an essay. The full narrative should read as a cohesive, sequential pitch arc.
+
+Then write the capstone synthesis — 4 to 5 sentences that connect all six frameworks as one complete arc. Show the student what they built: the logline compressed the idea into its sharpest form; the spine gave it emotional causality; Made to Stick made it land for strangers; the Golden Circle revealed the belief underneath it; the Powerwall Structure made inaction feel dangerous; and the Strategic Narrative gave the audience the one thing that makes a pitch irresistible — a story in which they are the hero. This synthesis should feel earned. It is the end of the curriculum.
+
+When finalized, output this tag on its own line:
+[STRATEGIC_NARRATIVE_FINAL: Shift: [value] | Winners/Losers: [value] | Promised Land: [value] | Magic Gifts: [value] | Evidence: [value]]
+
+This tag will be consumed programmatically. Do not skip it.
+
+---
+
+IDEA CONTINUITY — CRITICAL:
+Six frameworks. One idea. One conversation. Every prior output lives in the history. The Strategic Narrative is the synthesis — it should feel like the idea has finally found its most powerful, most audience-centered form. The student should finish this session feeling like they could walk into any room and own it.
+
+---
+
+FORMATTING RULES:
+- Use plain paragraphs. No bullet lists except when presenting the five moves in the final Strategic Narrative output.
+- Keep responses tight. Every sentence earns its place.
+- When presenting the final Strategic Narrative, format each move on its own line with the label in bold.
+- When writing the capstone synthesis, give it its own paragraph break and do not label it — let it land as a closing statement, not a section header.
+- Never end a message with more than one question.`;
+
+  // ─── PITCH ROOM SYSTEM PROMPT ─────────────────────────────────
+  const SYSTEM_PROMPT_PITCH_ROOM = `You are a world-class advisor, pitch coach, and strategic thinking partner. You have watched this student — a 16-year-old with serious potential — build a complete narrative architecture from scratch across six frameworks. You have their logline, story spine, Made to Stick profile, Golden Circle, Powerwall Structure, and Strategic Narrative in the conversation history. You know this idea better than anyone outside of them.
+
+Your role has fundamentally changed. You are no longer teaching. You are no longer moving them through a curriculum. That work is done. You are now the smartest advisor in the room — and you are entirely in their corner.
+
+You operate across five modes. Read the student's message and determine which mode serves them best. You can move between modes in a single conversation. You never announce which mode you're in.
+
+---
+
+MODE 1 — ADAPTIVE DELIVERY.
+Take everything built across all six frameworks and reformat it for any context, audience, or time constraint the student names. They should be able to say "give me a 30-second version for my teacher" or "I have 3 minutes at a competition — build the arc" or "my dad wants me to explain this at dinner" and receive a fully assembled, context-calibrated pitch drawn from the best elements of their work. You know which frameworks are most relevant for which contexts: a time-compressed pitch leans on the logline and Golden Circle; a competitive pitch leans on the Powerwall and Strategic Narrative; a casual explanation leans on the Pixar spine. You select without explaining your selection. You just deliver the right pitch for the room they're about to walk into.
+
+MODE 2 — AUDIENCE MODE.
+The student names the room. You become the room. If they say "stress test this against a skeptical investor," you become a skeptical investor — raise the real objections that investor would raise, push on the weakest assumptions, and refuse to let soft answers through. Then step out of character and coach the student on how to answer what just came at them. Other audience types this student may face: a teacher who thinks the idea is naive, a potential co-founder their own age who wants to know why them, a college admissions officer reading a 650-word essay version of this pitch, a competition judge who has heard 40 pitches today. For each audience type, you know what they care about, what they're skeptical of, and what would make them lean in. You play the room first. Then you coach.
+
+MODE 3 — SMART NEXT STEPS.
+Ask the student one question: where are they actually taking this? Is this for a class, a competition, a real startup, a college essay, a TEDx application, a science fair, a grant application, a club pitch? Once you know the destination, give them a specific, prioritized action plan — not generic advice, but precise next steps calibrated to their goal and timeline. A world-class advisor does not say "keep working on it." They say: here are the three things you need to do in the next two weeks, in this order, for this specific reason. If the student doesn't know where they're taking it yet, that is itself important information. Help them think through the options with the clarity of someone who has seen what these ideas can become when they're taken seriously.
+
+MODE 4 — WEAKNESS AUDIT.
+Review all six framework outputs in the conversation history and identify the single weakest element in the student's full narrative. Not to discourage — to prioritize. Be specific and direct: name the element, explain exactly why it's the weak link, and give them a concrete prescription for strengthening it. Common weak links: a Shift that's really a problem statement (debatable, not observable); a Why that's a platitude (no one could disagree with it); a Promised Land that's a feature list in disguise; Evidence that's analogical rather than actual. Do not soften the diagnosis. They have built six frameworks — they can handle a precise critique. End with one specific question that would, if answered well, fix the weakness.
+
+MODE 5 — CROSS-FRAMEWORK SYNTHESIS.
+The student can ask questions that span frameworks: "Does my Golden Circle Why show up in my Strategic Narrative Shift?" "Is my Pixar spine consistent with my Powerwall enemy?" "What's the through-line across everything I built?" You can compare, contrast, and surface both contradictions and alignments across all six outputs. When you find a contradiction, name it directly and explain what resolving it would do for the pitch. When you find a strong alignment — a thread that runs from the logline all the way through the Strategic Narrative — name that too. Those threads are the backbone of a truly unified pitch.
+
+---
+
+TONE AND BEHAVIOR:
+You are direct. You do not cheerlead. You do not pad. Every sentence earns its place.
+You treat this student as someone who has done serious work and deserves serious engagement — not encouragement, engagement.
+You ask one question per turn when a question is needed. Never more.
+You carry everything forward. You never ask them to repeat anything they've already told you.
+You remember that this is a 16-year-old, which means: they have more capacity than most adults give them credit for, they are deciding right now whether ideas like theirs are worth taking seriously, and the quality of the thinking they receive in the next few years will shape the quality of the thinking they do for the rest of their life. Act accordingly.
+
+---
+
+OPENING MOVE — CRITICAL:
+When the student first enters The Pitch Room, do not wait for them to ask a question. Open with a brief, direct acknowledgment of what they built — reference their actual logline and their Golden Circle Why specifically. Then immediately ask the one question that matters most right now:
+
+"You've built the full architecture. Now tell me — where are you actually taking this?"
+
+Do not explain the modes. Do not give a menu of options. Do not summarize what The Pitch Room can do. Ask the question. Let them drive.
+
+---
+
+FORMATTING RULES:
+- Plain paragraphs. No bullet lists unless delivering a structured action plan or a formatted pitch.
+- When delivering a formatted pitch for a specific audience, use labeled sections.
+- When playing an audience role in Audience Mode, open with a clear signal — "Investor hat on:" or "Playing the teacher:" — then drop fully into character. After the challenge, step out with a line break and "Coach:" before the debrief.
+- Keep responses tight. This student has earned a high bar. Hold it.
+- Never end a message with more than one question.`;
+
+  // ─── SYSTEM PROMPT SELECTOR ──────────────────────────────────
+  function getSystemPrompt() {
+    if (currentFramework === 0) return SYSTEM_PROMPT_FW01;
+    if (currentFramework === 1) return SYSTEM_PROMPT_FW02;
+    if (currentFramework === 2) return SYSTEM_PROMPT_FW03;
+    if (currentFramework === 3) return SYSTEM_PROMPT_FW04;
+    if (currentFramework === 4) return SYSTEM_PROMPT_FW05;
+    if (currentFramework === 5) return SYSTEM_PROMPT_FW06;
+    if (currentFramework === 6) return SYSTEM_PROMPT_PITCH_ROOM;
+    return SYSTEM_PROMPT_FW01; // fallback
+  }
+
+  // ─── TYPING INDICATOR ────────────────────────────────────────
+  function showTypingIndicator() {
+    const chatArea = document.getElementById('chatArea');
+    const indicator = document.createElement('div');
+    indicator.className = 'msg';
+    indicator.id = 'typingIndicator';
+    indicator.innerHTML = `
+      <div class="msg-label">Story Engine</div>
+      <div class="msg-bubble">
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    chatArea.appendChild(indicator);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) indicator.remove();
+  }
+
+  // ─── RENDER AI BUBBLE ─────────────────────────────────────────
+  function parseMarkdown(raw) {
+    let text = raw
+      .replace(/\[LOGLINE_FINAL:[^\]]*\]/g, '')
+      .replace(/\[SPINE_FINAL:[^\]]*\]/gs, '')
+      .replace(/\[MADE_TO_STICK_FINAL:[^\]]*\]/gs, '')
+      .replace(/\[GOLDEN_CIRCLE_FINAL:[^\]]*\]/gs, '')
+      .replace(/\[POWERWALL_FINAL:[^\]]*\]/gs, '')
+      .replace(/\[STRATEGIC_NARRATIVE_FINAL:[^\]]*\]/gs, '')
+      .trim();
+
+    // Split into paragraphs on double newline
+    const paragraphs = text.split(/\n\n+/);
+
+    const parsedParas = paragraphs.map(para => {
+      let p = para
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // Bold: **text**
+      p = p.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Italic: *text* (single asterisk, not touching bold remnants)
+      p = p.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+      // Single newlines within a paragraph → <br>
+      p = p.replace(/\n/g, '<br>');
+
+      return `<p>${p}</p>`;
+    });
+
+    return parsedParas.join('');
+  }
+
+  function renderAIMessage(raw) {
+    const chatArea = document.getElementById('chatArea');
+
+    // ── Detect and extract [LOGLINE_FINAL:] ──────────────────────
+    const loglineMatch = raw.match(/\[LOGLINE_FINAL:\s*(.*?)\]/s);
+    let extractedLogline = null;
+    if (loglineMatch) {
+      extractedLogline = loglineMatch[1].trim();
+      storyEngineState.logline = extractedLogline;
+    }
+
+    // ── Detect and extract [SPINE_FINAL:] ────────────────────────
+    const spineMatch = raw.match(/\[SPINE_FINAL:\s*(.*?)\]/s);
+    if (spineMatch) {
+      storyEngineState.pixarSpine = spineMatch[1].trim();
+    }
+
+    // ── Detect and extract [MADE_TO_STICK_FINAL:] ────────────────────
+    const madeToStickMatch = raw.match(/\[MADE_TO_STICK_FINAL:\s*(.*?)\]/s);
+    if (madeToStickMatch) {
+      storyEngineState.madeToStick = madeToStickMatch[1].trim();
+    }
+
+    // ── Detect and extract [GOLDEN_CIRCLE_FINAL:] ────────────────────
+    const goldenCircleMatch = raw.match(/\[GOLDEN_CIRCLE_FINAL:\s*(.*?)\]/s);
+    if (goldenCircleMatch) {
+      storyEngineState.goldenCircle = goldenCircleMatch[1].trim();
+    }
+
+    // ── Detect and extract [POWERWALL_FINAL:] ────────────────────
+    const powerwallMatch = raw.match(/\[POWERWALL_FINAL:\s*(.*?)\]/s);
+    if (powerwallMatch) {
+      storyEngineState.powerwallStructure = powerwallMatch[1].trim();
+    }
+
+    // ── Detect and extract [STRATEGIC_NARRATIVE_FINAL:] ──────────
+    const strategicNarrativeMatch = raw.match(/\[STRATEGIC_NARRATIVE_FINAL:\s*(.*?)\]/s);
+    if (strategicNarrativeMatch) {
+      storyEngineState.strategicNarrative = strategicNarrativeMatch[1].trim();
+    }
+
+    // ── Parse markdown (tags already stripped inside parseMarkdown) ──
+    const formattedHTML = parseMarkdown(raw);
+
+    // ── Build the message bubble ─────────────────────────────────
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'msg';
+    aiMsg.innerHTML = `
+      <div class="msg-label">Story Engine</div>
+      <div class="msg-bubble" style="
+        color: rgba(237,233,224,0.85);
+        padding: 20px 24px;
+        letter-spacing: 0.01em;
+      ">${formattedHTML}</div>
+    `;
+    chatArea.appendChild(aiMsg);
+
+    // ── FW01 completion: sidebar update first, then logline card, then transition card ──
+    if (extractedLogline) {
+      markFrameworkComplete(0);
+
+      const card = document.createElement('div');
+      card.className = 'logline-reveal';
+      card.innerHTML = `
+        <div class="logline-reveal-label">&#10022; &nbsp;Your Logline</div>
+        <div class="logline-reveal-text">${escHtml(extractedLogline)}</div>
+      `;
+      chatArea.appendChild(card);
+
+      const saveNudge1 = document.createElement('div');
+      saveNudge1.style.cssText = 'max-width: 680px; width: 100%; margin: -12px auto 16px; text-align: right;';
+      saveNudge1.innerHTML = `<span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase;">&#8593; Save your progress in the sidebar</span>`;
+      chatArea.appendChild(saveNudge1);
+
+      transitionToFramework(1);
+    }
+
+    // ── FW02 completion: spine reveal card + transition to FW03 ──
+    if (spineMatch) {
+      markFrameworkComplete(1);
+
+      const spineCard = document.createElement('div');
+      spineCard.className = 'logline-reveal';
+      spineCard.innerHTML = `
+        <div class="logline-reveal-label">&#10022; &nbsp;Your Story Spine</div>
+        <div class="logline-reveal-text">${escHtml(storyEngineState.pixarSpine)}</div>
+      `;
+      chatArea.appendChild(spineCard);
+
+      const saveNudge2 = document.createElement('div');
+      saveNudge2.style.cssText = 'max-width: 680px; width: 100%; margin: -12px auto 16px; text-align: right;';
+      saveNudge2.innerHTML = `<span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase;">&#8593; Save your progress in the sidebar</span>`;
+      chatArea.appendChild(saveNudge2);
+
+      transitionToFramework(2);
+    }
+
+    // ── FW03 completion: Made to Stick reveal card + transition to FW04 ──
+    if (madeToStickMatch) {
+      markFrameworkComplete(2);
+
+      const mtsCard = document.createElement('div');
+      mtsCard.className = 'logline-reveal';
+      mtsCard.innerHTML = `
+        <div class="logline-reveal-label">&#10022; &nbsp;Your Made to Stick Profile</div>
+        <div class="logline-reveal-text">${escHtml(storyEngineState.madeToStick)}</div>
+      `;
+      chatArea.appendChild(mtsCard);
+
+      const saveNudge3 = document.createElement('div');
+      saveNudge3.style.cssText = 'max-width: 680px; width: 100%; margin: -12px auto 16px; text-align: right;';
+      saveNudge3.innerHTML = `<span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase;">&#8593; Save your progress in the sidebar</span>`;
+      chatArea.appendChild(saveNudge3);
+
+      transitionToFramework(3);
+    }
+
+    // ── FW04 completion: Golden Circle reveal card + transition to FW05 ──
+    if (goldenCircleMatch) {
+      markFrameworkComplete(3);
+
+      const gcCard = document.createElement('div');
+      gcCard.className = 'logline-reveal';
+      gcCard.innerHTML = `
+        <div class="logline-reveal-label">&#10022; &nbsp;Your Golden Circle</div>
+        <div class="logline-reveal-text">${escHtml(storyEngineState.goldenCircle)}</div>
+      `;
+      chatArea.appendChild(gcCard);
+
+      const saveNudge4 = document.createElement('div');
+      saveNudge4.style.cssText = 'max-width: 680px; width: 100%; margin: -12px auto 16px; text-align: right;';
+      saveNudge4.innerHTML = `<span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase;">&#8593; Save your progress in the sidebar</span>`;
+      chatArea.appendChild(saveNudge4);
+
+      transitionToFramework(4);
+    }
+
+    // ── FW05 completion: Powerwall reveal card + transition to FW06 ──
+    if (powerwallMatch) {
+      markFrameworkComplete(4);
+
+      const pwCard = document.createElement('div');
+      pwCard.className = 'logline-reveal';
+      pwCard.innerHTML = `
+        <div class="logline-reveal-label">&#10022; &nbsp;Your Powerwall Structure</div>
+        <div class="logline-reveal-text">${escHtml(storyEngineState.powerwallStructure)}</div>
+      `;
+      chatArea.appendChild(pwCard);
+
+      const saveNudge5 = document.createElement('div');
+      saveNudge5.style.cssText = 'max-width: 680px; width: 100%; margin: -12px auto 16px; text-align: right;';
+      saveNudge5.innerHTML = `<span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase;">&#8593; Save your progress in the sidebar</span>`;
+      chatArea.appendChild(saveNudge5);
+
+      transitionToFramework(5);
+    }
+
+    // ── FW06 completion: Strategic Narrative reveal card + curriculum complete ──
+    if (strategicNarrativeMatch) {
+      markFrameworkComplete(5);
+
+      const snCard = document.createElement('div');
+      snCard.className = 'logline-reveal';
+      snCard.innerHTML = `
+        <div class="logline-reveal-label">&#10022; &nbsp;Your Strategic Narrative</div>
+        <div class="logline-reveal-text">${escHtml(storyEngineState.strategicNarrative)}</div>
+      `;
+      chatArea.appendChild(snCard);
+
+      const completeCard = document.createElement('div');
+      completeCard.className = 'logline-reveal';
+      completeCard.style.cssText = 'border-color: rgba(200,164,94,0.6); border-left-width: 3px; margin-top: 8px;';
+      completeCard.innerHTML = `
+        <div class="logline-reveal-label" style="letter-spacing: 0.3em;">&#9670; &nbsp;Curriculum Complete</div>
+        <div class="logline-reveal-text" style="font-size: 22px; line-height: 1.5;">Six frameworks. One idea. Your full narrative is built.</div>
+        <div style="margin-top: 12px; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 300; color: var(--text-sec); line-height: 1.7;">You can now compress your idea to a single sentence, build its emotional arc, make it stick for any audience, lead with belief, make inaction feel dangerous, and give every listener a story in which they are the hero. Save your progress below.</div>
+      `;
+      chatArea.appendChild(completeCard);
+
+      // FW06 save nudge
+      const saveNudge6 = document.createElement('div');
+      saveNudge6.style.cssText = 'max-width: 680px; width: 100%; margin: -12px auto 16px; text-align: right;';
+      saveNudge6.innerHTML = `<span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase;">&#8593; Save your progress in the sidebar</span>`;
+      chatArea.appendChild(saveNudge6);
+
+      // Unlock The Pitch Room sidebar entry
+      const pitchRoomItem = document.getElementById('pitchRoomItem');
+      if (pitchRoomItem) {
+        pitchRoomItem.style.opacity = '1';
+        pitchRoomItem.style.pointerEvents = 'auto';
+        const prLock = document.getElementById('pitchRoomLock');
+        if (prLock) prLock.remove();
+        const prDot = document.getElementById('pitchRoomDot');
+        if (prDot) {
+          prDot.classList.add('active');
+        }
+      }
+
+      // Full-fidelity export card
+      const exportCard = document.createElement('div');
+      exportCard.className = 'logline-reveal';
+      exportCard.style.cssText = 'border-color: rgba(255,255,255,0.1); margin-top: 8px;';
+      exportCard.innerHTML = `
+        <div class="logline-reveal-label" style="letter-spacing: 0.25em;">&#128196; &nbsp;Your Full Narrative — All Six Frameworks</div>
+        <div style="font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 300; color: var(--text-sec); line-height: 1.8; margin-top: 10px;">
+          <div style="margin-bottom: 8px;"><span style="color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em;">LOGLINE</span><br>${escHtml(storyEngineState.logline || '—')}</div>
+          <div style="margin-bottom: 8px;"><span style="color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em;">STORY SPINE</span><br>${escHtml(storyEngineState.pixarSpine || '—')}</div>
+          <div style="margin-bottom: 8px;"><span style="color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em;">MADE TO STICK</span><br>${escHtml(storyEngineState.madeToStick || '—')}</div>
+          <div style="margin-bottom: 8px;"><span style="color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em;">GOLDEN CIRCLE</span><br>${escHtml(storyEngineState.goldenCircle || '—')}</div>
+          <div style="margin-bottom: 8px;"><span style="color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em;">POWERWALL STRUCTURE</span><br>${escHtml(storyEngineState.powerwallStructure || '—')}</div>
+          <div style="margin-bottom: 12px;"><span style="color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em;">STRATEGIC NARRATIVE</span><br>${escHtml(storyEngineState.strategicNarrative || '—')}</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="copyFullNarrative()" style="background: var(--gold-dim); border: 1px solid rgba(200,164,94,0.3); border-radius: 8px; color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 8px 16px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(200,164,94,0.2)'" onmouseout="this.style.background='var(--gold-dim)'">Copy All</button>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; align-self: center;">Full conversation saved with the sidebar Save button.</span>
+          </div>
+        </div>
+      `;
+      chatArea.appendChild(exportCard);
+    }
+
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function copyFullNarrative() {
+    const parts = [
+      `LOGLINE\n${storyEngineState.logline || '—'}`,
+      `STORY SPINE\n${storyEngineState.pixarSpine || '—'}`,
+      `MADE TO STICK\n${storyEngineState.madeToStick || '—'}`,
+      `GOLDEN CIRCLE\n${storyEngineState.goldenCircle || '—'}`,
+      `POWERWALL STRUCTURE\n${storyEngineState.powerwallStructure || '—'}`,
+      `STRATEGIC NARRATIVE\n${storyEngineState.strategicNarrative || '—'}`
+    ];
+    navigator.clipboard.writeText(parts.join('\n\n')).then(() => {
+      const btn = document.querySelector('button[onclick="copyFullNarrative()"]');
+      if (btn) {
+        btn.textContent = 'Copied ✓';
+        setTimeout(() => { btn.textContent = 'Copy All'; }, 2000);
+      }
+    });
+  }
+
+  // ─── FRAMEWORK COMPLETION ────────────────────────────────────
+  function markFrameworkComplete(idx) {
+    const items = document.querySelectorAll('.framework-item');
+    const dot = items[idx]?.querySelector('.fw-dot');
+    if (dot) {
+      dot.classList.remove('active');
+      dot.classList.add('done');
+    }
+
+    const nextItem = items[idx + 1];
+    if (nextItem) {
+      nextItem.querySelector('.fw-lock')?.remove();
+    }
+
+    const completed = idx + 1;
+    document.getElementById('progress-pct').textContent = `${completed} / 6`;
+    document.getElementById('progress-fill').style.width = `${(completed / 6) * 100}%`;
+
+    const names = ['Hollywood Logline','Pixar Story Spine','Made to Stick','Golden Circle','Powerwall Structure','Strategic Narrative'];
+    storyEngineState.frameworksCompleted = storyEngineState.frameworksCompleted || [];
+    if (!storyEngineState.frameworksCompleted.includes(names[idx])) {
+      storyEngineState.frameworksCompleted.push(names[idx]);
+    }
+  }
+
+  function transitionToFramework(idx) {
+    currentFramework = idx;
+
+    const names = ['Hollywood Logline','Pixar Story Spine','Made to Stick','Golden Circle','Powerwall Structure','Strategic Narrative'];
+
+    document.querySelector('.topbar-framework').textContent = `Framework 0${idx + 1}`;
+    document.querySelector('.topbar-mode').textContent = names[idx];
+
+    const items = document.querySelectorAll('.framework-item');
+    items.forEach(i => i.classList.remove('active'));
+    if (items[idx]) {
+      items[idx].classList.add('active');
+      const dot = items[idx].querySelector('.fw-dot');
+      if (dot) {
+        dot.classList.remove('done');
+        dot.classList.add('active');
+      }
+    }
+
+    const chatArea = document.getElementById('chatArea');
+    const card = document.createElement('div');
+    card.className = 'framework-transition-card';
+    card.innerHTML = `
+      <div class="ftc-label">Next Framework</div>
+      <div class="ftc-name">0${idx + 1} &mdash; ${names[idx]}</div>
+    `;
+    chatArea.appendChild(card);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  // ─── SEND MESSAGE — CORE FUNCTION ────────────────────────────
+  async function sendMessage() {
+    const ta = document.getElementById('msgInput');
+    const val = ta.value.trim();
+    if (!val) return;
+
+    const chatArea = document.getElementById('chatArea');
+
+    // Remove welcome block on first message
+    const welcome = chatArea.querySelector('.welcome');
+    if (welcome) welcome.remove();
+
+    // Render user bubble
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg user';
+    userMsg.innerHTML = `
+      <div class="msg-label">You</div>
+      <div class="msg-bubble">${escHtml(val)}</div>
+    `;
+    chatArea.appendChild(userMsg);
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // Clear and reset textarea
+    ta.value = '';
+    ta.style.height = 'auto';
+
+    // Push user message into history
+    conversationHistory.push({ role: 'user', content: val });
+
+    // Show typing indicator
+    showTypingIndicator();
+
+    // Disable send button while in flight
+    const sendBtn = document.querySelector('.send-btn');
+    sendBtn.disabled = true;
+    sendBtn.style.opacity = '0.5';
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': getApiKey(),
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
+          system: getSystemPrompt(),
+          messages: conversationHistory
+        })
+      });
+
+      if (!response.ok) {
+        let errorDetail = `Status ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData?.error?.message) errorDetail = errData.error.message;
+        } catch (_) {}
+        throw new Error(errorDetail);
+      }
+
+      const data = await response.json();
+      const replyText = data?.content?.[0]?.text ?? '';
+
+      if (!replyText) throw new Error('Empty response from API.');
+
+      // Push assistant reply into history
+      conversationHistory.push({ role: 'assistant', content: replyText });
+
+      // Remove typing indicator and render response
+      removeTypingIndicator();
+      renderAIMessage(replyText);
+
+    } catch (err) {
+      removeTypingIndicator();
+
+      // Render clean error bubble
+      const chatArea = document.getElementById('chatArea');
+      const errMsg = document.createElement('div');
+      errMsg.className = 'msg';
+      errMsg.innerHTML = `
+        <div class="msg-label">Story Engine</div>
+        <div class="msg-bubble" style="border-color: rgba(192,96,96,0.3); color: var(--red);">
+          Something went wrong: ${escHtml(err.message)}. Check your connection and try again.
+        </div>
+      `;
+      chatArea.appendChild(errMsg);
+      chatArea.scrollTop = chatArea.scrollHeight;
+
+      // Remove the failed user message from history so the next retry is clean
+      if (conversationHistory[conversationHistory.length - 1]?.role === 'user') {
+        conversationHistory.pop();
+      }
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.style.opacity = '1';
+    }
+  }
+
+
+  // ─── FIX 2: SAVE PROGRESS ────────────────────────────────────
+  function saveProgress() {
+    const payload = {
+      meta: {
+        version: "1.0",
+        savedAt: new Date().toISOString(),
+        frameworksCompleted: storyEngineState.frameworksCompleted
+      },
+      story: {
+        logline: storyEngineState.logline,
+        ideaCore: storyEngineState.ideaCore,
+        pixarSpine: storyEngineState.pixarSpine || null,
+        madeToStick: storyEngineState.madeToStick || null,
+        goldenCircle: storyEngineState.goldenCircle || null,
+        powerwallStructure: storyEngineState.powerwallStructure || null,
+        strategicNarrative: storyEngineState.strategicNarrative || null
+      },
+      history: conversationHistory
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'story-engine-save.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ─── FIX 3: IMPORT / LOAD PROGRESS ──────────────────────────
+  function triggerImport() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          loadProgress(JSON.parse(evt.target.result));
+        } catch (err) {
+          alert('Could not read save file. Make sure it\'s a valid Story Engine save.');
+        }
+      };
+      reader.readAsText(file);
+      document.body.removeChild(input);
+    });
+    document.body.appendChild(input);
+    input.click();
+  }
+
+  async function loadProgress(data) {
+    // Restore state
+    if (data.history) {
+      conversationHistory.length = 0;
+      data.history.forEach(msg => conversationHistory.push(msg));
+    }
+    if (data.story) {
+      if (data.story.logline) storyEngineState.logline = data.story.logline;
+      if (data.story.ideaCore) storyEngineState.ideaCore = data.story.ideaCore;
+      if (data.story.pixarSpine) storyEngineState.pixarSpine = data.story.pixarSpine;
+      if (data.story.madeToStick) storyEngineState.madeToStick = data.story.madeToStick;
+      if (data.story.goldenCircle) storyEngineState.goldenCircle = data.story.goldenCircle;
+      if (data.story.powerwallStructure) storyEngineState.powerwallStructure = data.story.powerwallStructure;
+      if (data.story.strategicNarrative) storyEngineState.strategicNarrative = data.story.strategicNarrative;
+    }
+
+    if (data.meta && data.meta.frameworksCompleted) {
+      storyEngineState.frameworksCompleted = data.meta.frameworksCompleted;
+      const count = data.meta.frameworksCompleted.length;
+      if (count > 0) {
+        currentFramework = count < 6 ? count : 5;
+        // Update sidebar to reflect restored state
+        const items = document.querySelectorAll('.framework-item');
+        items.forEach((item, i) => {
+          item.classList.remove('active');
+          const dot = item.querySelector('.fw-dot');
+          const lock = item.querySelector('.fw-lock');
+          if (i < count) {
+            dot?.classList.remove('active');
+            dot?.classList.add('done');
+            lock?.remove();
+          } else if (i === count) {
+            dot?.classList.add('active');
+            lock?.remove();
+            item.classList.add('active');
+          }
+        });
+        // Unlock The Pitch Room if all 6 frameworks are complete
+        if (count >= 6) {
+          currentFramework = 6;
+          const pitchRoomItem = document.getElementById('pitchRoomItem');
+          if (pitchRoomItem) {
+            pitchRoomItem.style.opacity = '1';
+            pitchRoomItem.style.pointerEvents = 'auto';
+            document.getElementById('pitchRoomLock')?.remove();
+            document.getElementById('pitchRoomDot')?.classList.add('active');
+          }
+        }
+        document.getElementById('progress-pct').textContent = `${count} / 6`;
+        document.getElementById('progress-fill').style.width = `${(count / 6) * 100}%`;
+        const names = ['Hollywood Logline','Pixar Story Spine','Made to Stick','Golden Circle','Powerwall Structure','Strategic Narrative'];
+        if (currentFramework === 6) {
+          document.querySelector('.topbar-framework').textContent = `The Destination`;
+          document.querySelector('.topbar-mode').textContent = 'The Pitch Room';
+        } else {
+          document.querySelector('.topbar-framework').textContent = `Framework 0${currentFramework + 1}`;
+          document.querySelector('.topbar-mode').textContent = names[currentFramework];
+        }
+      }
+    }
+
+    // Remove welcome screen
+    const welcome = document.querySelector('.welcome');
+    if (welcome) welcome.remove();
+
+    // Render local re-orientation message (no API call)
+    const loglineDisplay = storyEngineState.logline || 'not yet finalized';
+    const reorientText = `Welcome back. Here's where we left off:\n\nYour logline: ${loglineDisplay}\n\nYour full conversation has been restored. Pick up exactly where you stopped — or tell me if you want to revisit anything.`;
+    renderAIMessage(reorientText);
+
+    // Fire one live API call to make the session feel alive
+    const nudgeHistory = [
+      ...conversationHistory,
+      { role: 'user', content: '[SYSTEM: Session restored. Briefly acknowledge the resume in one sentence, then ask what they\'d like to do next — continue forward or tighten something they\'ve already built.]' }
+    ];
+
+    conversationHistory.push({ role: 'user', content: '[SYSTEM: Session restored. Briefly acknowledge the resume in one sentence, then ask what they\'d like to do next — continue forward or tighten something they\'ve already built.]' });
+
+    showTypingIndicator();
+    const sendBtn = document.querySelector('.send-btn');
+    sendBtn.disabled = true;
+    sendBtn.style.opacity = '0.5';
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': getApiKey(),
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
+          system: getSystemPrompt(),
+          messages: nudgeHistory
+        })
+      });
+
+      if (!response.ok) {
+        let errorDetail = `Status ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData?.error?.message) errorDetail = errData.error.message;
+        } catch (_) {}
+        throw new Error(errorDetail);
+      }
+
+      const apiData = await response.json();
+      const replyText = apiData?.content?.[0]?.text ?? '';
+      if (!replyText) throw new Error('Empty response from API.');
+
+      conversationHistory.push({ role: 'assistant', content: replyText });
+      removeTypingIndicator();
+      renderAIMessage(replyText);
+
+    } catch (err) {
+      removeTypingIndicator();
+      const chatArea = document.getElementById('chatArea');
+      const errMsg = document.createElement('div');
+      errMsg.className = 'msg';
+      errMsg.innerHTML = `
+        <div class="msg-label">Story Engine</div>
+        <div class="msg-bubble" style="border-color: rgba(192,96,96,0.3); color: var(--red);">
+          Session restored, but couldn't connect: ${escHtml(err.message)}. Your history is intact.
+        </div>
+      `;
+      chatArea.appendChild(errMsg);
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.style.opacity = '1';
+    }
+  }
+
+  // ─── FIX 5: AUTO SEND ────────────────────────────────────────
+  function autoSend(text) {
+    const ta = document.getElementById('msgInput');
+    ta.value = text;
+    autoResize(ta);
+    sendMessage();
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+
+  function handleKey(e) {
+    if ((e.key === 'Enter') && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function focusInput() {
+    document.getElementById('msgInput').focus();
+  }
+
+  function selectFramework(el, idx) {
+    document.querySelectorAll('.framework-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+
+    const names = [
+      'Hollywood Logline','Pixar Story Spine','Made to Stick',
+      'Golden Circle','Powerwall Structure','Strategic Narrative','The Pitch Room'
+    ];
+
+    if (idx === 6) {
+      currentFramework = 6;
+      document.querySelector('.topbar-framework').textContent = `The Destination`;
+      document.querySelector('.topbar-mode').textContent = 'The Pitch Room';
+    } else {
+      currentFramework = idx;
+      document.querySelector('.topbar-framework').textContent = `Framework 0${idx + 1}`;
+      document.querySelector('.topbar-mode').textContent = names[idx];
+    }
+
+    if (window.innerWidth <= 768) toggleSidebar();
+  }
+
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const ov = document.getElementById('sidebarOverlay');
+    sb.classList.toggle('open');
+    ov.classList.toggle('show');
+  }
+
+  function toggleGuide() {
+    const drawer = document.getElementById('guideDrawer');
+    const overlay = document.getElementById('guideOverlay');
+    drawer.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }
+
+  // ─── API KEY GATE ─────────────────────────────────────────
+  function initApiKey() {
+    const stored = sessionStorage.getItem('se_api_key');
+    if (stored) {
+      // Key exists — hide gate, show CTAs
+      const gate = document.getElementById('keyGate');
+      const ctas = document.getElementById('ctaLinks');
+      if (gate) gate.style.display = 'none';
+      if (ctas) ctas.style.display = 'flex';
+    } else {
+      // No key — show gate, keep CTAs hidden
+      const gate = document.getElementById('keyGate');
+      const ctas = document.getElementById('ctaLinks');
+      if (gate) gate.style.display = 'block';
+      if (ctas) ctas.style.display = 'none';
+      // Focus input after a brief delay for animation
+      setTimeout(() => {
+        const input = document.getElementById('keyGateInput');
+        if (input) input.focus();
+      }, 400);
+    }
+  }
+
+  function confirmApiKey() {
+    const input = document.getElementById('keyGateInput');
+    const errorEl = document.getElementById('keyGateError');
+    if (!input || !errorEl) return;
+
+    const val = input.value.trim();
+
+    // Format validation
+    if (!val.startsWith('sk-ant-') || val.length < 20) {
+      errorEl.classList.add('show');
+      input.style.borderColor = 'rgba(192,96,96,0.5)';
+      setTimeout(() => {
+        errorEl.classList.remove('show');
+        input.style.borderColor = '';
+      }, 3000);
+      return;
+    }
+
+    // Store and reveal
+    sessionStorage.setItem('se_api_key', val);
+    input.value = '';
+
+    const gate = document.getElementById('keyGate');
+    const ctas = document.getElementById('ctaLinks');
+
+    if (gate) {
+      gate.style.transition = 'opacity 0.3s ease';
+      gate.style.opacity = '0';
+      setTimeout(() => {
+        gate.style.display = 'none';
+        if (ctas) {
+          ctas.style.display = 'flex';
+          ctas.style.opacity = '0';
+          ctas.style.transition = 'opacity 0.3s ease';
+          setTimeout(() => { ctas.style.opacity = '1'; }, 20);
+        }
+      }, 300);
+    }
+  }
+
+  function handleKeyGate(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmApiKey();
+    }
+  }
+
+  function getApiKey() {
+    return sessionStorage.getItem('se_api_key') || '';
+  }
+
+  window.addEventListener('load', () => {
+    // Shared paragraph spacing for all AI message bubbles
+    const sharedStyle = document.createElement('style');
+    sharedStyle.textContent = `
+      .msg-bubble p { margin-bottom: 1em; }
+      .msg-bubble p:last-child { margin-bottom: 0; }
+    `;
+    document.head.appendChild(sharedStyle);
+
+    setTimeout(() => {
+      document.getElementById('progress-fill').style.width = '0%';
+    }, 600);
+    initApiKey();
+  });
+
+</script>
+</body>
+</html>
