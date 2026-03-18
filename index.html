@@ -700,91 +700,6 @@ textarea::placeholder { color: var(--text-muted); }
 }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-/* ─── API KEY GATE ───────────────────────────────────────── */
-.key-gate {
-  margin-top: 8px;
-  animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) 0.3s both;
-}
-.key-gate-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--gold);
-  opacity: 0.7;
-  margin-bottom: 10px;
-}
-.key-gate-input-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.key-gate-input {
-  flex: 1;
-  background: var(--surface2);
-  border: 1px solid var(--border-hi);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 300;
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  letter-spacing: 0.04em;
-}
-.key-gate-input::placeholder {
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-}
-.key-gate-input:focus {
-  border-color: rgba(200,164,94,0.4);
-  box-shadow: 0 0 0 3px rgba(200,164,94,0.06);
-}
-.key-gate-btn {
-  background: var(--gold-dim);
-  border: 1px solid rgba(200,164,94,0.25);
-  border-radius: var(--radius-sm);
-  color: var(--gold);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 10px 18px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-.key-gate-btn:hover {
-  background: rgba(200,164,94,0.2);
-  border-color: rgba(200,164,94,0.5);
-}
-.key-gate-error {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--red);
-  margin-bottom: 8px;
-  min-height: 14px;
-  display: none;
-}
-.key-gate-error.show { display: block; }
-.key-gate-note {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-.key-gate-note a {
-  color: var(--text-muted);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.key-gate-note a:hover { color: var(--text-sec); }
-
 /* ─── GUIDE DRAWER ───────────────────────────────────────── */
 .guide-btn {
   width: 28px; height: 28px;
@@ -1250,26 +1165,7 @@ textarea::placeholder { color: var(--text-muted); }
           </div>
         </div>
 
-        <div class="key-gate" id="keyGate">
-          <div class="key-gate-label">&#128273; &nbsp;Enter your API Key to begin</div>
-          <div class="key-gate-error" id="keyGateError">Invalid key format. Keys begin with sk-ant-</div>
-          <div class="key-gate-input-row">
-            <input
-              class="key-gate-input"
-              id="keyGateInput"
-              type="password"
-              placeholder="sk-ant-..."
-              autocomplete="off"
-              onKeyDown="handleKeyGate(event)"
-            />
-            <button class="key-gate-btn" onclick="confirmApiKey()">Unlock</button>
-          </div>
-          <div class="key-gate-note">
-            Your key stays in your browser. It's never sent anywhere except directly to Anthropic.<br>
-            Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
-          </div>
-        </div>
-        <div class="cta-links" id="ctaLinks" style="display:none;">
+        <div class="cta-links" id="ctaLinks">
           <div class="cta-link" onclick="focusInput()">
             <span class="cta-arrow">&#8594;</span>
             <span>I have an idea &mdash; let's build it</span>
@@ -2404,12 +2300,10 @@ FORMATTING RULES:
     sendBtn.style.opacity = '0.5';
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://story-engine-proxy.justin-mcreynolds.workers.dev', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': getApiKey(),
-          'anthropic-version': '2023-06-01'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
@@ -2606,12 +2500,10 @@ FORMATTING RULES:
     sendBtn.style.opacity = '0.5';
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://story-engine-proxy.justin-mcreynolds.workers.dev', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': getApiKey(),
-          'anthropic-version': '2023-06-01'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
@@ -2720,80 +2612,6 @@ FORMATTING RULES:
     overlay.classList.toggle('show');
   }
 
-  // ─── API KEY GATE ─────────────────────────────────────────
-  function initApiKey() {
-    const stored = sessionStorage.getItem('se_api_key');
-    if (stored) {
-      // Key exists — hide gate, show CTAs
-      const gate = document.getElementById('keyGate');
-      const ctas = document.getElementById('ctaLinks');
-      if (gate) gate.style.display = 'none';
-      if (ctas) ctas.style.display = 'flex';
-    } else {
-      // No key — show gate, keep CTAs hidden
-      const gate = document.getElementById('keyGate');
-      const ctas = document.getElementById('ctaLinks');
-      if (gate) gate.style.display = 'block';
-      if (ctas) ctas.style.display = 'none';
-      // Focus input after a brief delay for animation
-      setTimeout(() => {
-        const input = document.getElementById('keyGateInput');
-        if (input) input.focus();
-      }, 400);
-    }
-  }
-
-  function confirmApiKey() {
-    const input = document.getElementById('keyGateInput');
-    const errorEl = document.getElementById('keyGateError');
-    if (!input || !errorEl) return;
-
-    const val = input.value.trim();
-
-    // Format validation
-    if (!val.startsWith('sk-ant-') || val.length < 20) {
-      errorEl.classList.add('show');
-      input.style.borderColor = 'rgba(192,96,96,0.5)';
-      setTimeout(() => {
-        errorEl.classList.remove('show');
-        input.style.borderColor = '';
-      }, 3000);
-      return;
-    }
-
-    // Store and reveal
-    sessionStorage.setItem('se_api_key', val);
-    input.value = '';
-
-    const gate = document.getElementById('keyGate');
-    const ctas = document.getElementById('ctaLinks');
-
-    if (gate) {
-      gate.style.transition = 'opacity 0.3s ease';
-      gate.style.opacity = '0';
-      setTimeout(() => {
-        gate.style.display = 'none';
-        if (ctas) {
-          ctas.style.display = 'flex';
-          ctas.style.opacity = '0';
-          ctas.style.transition = 'opacity 0.3s ease';
-          setTimeout(() => { ctas.style.opacity = '1'; }, 20);
-        }
-      }, 300);
-    }
-  }
-
-  function handleKeyGate(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      confirmApiKey();
-    }
-  }
-
-  function getApiKey() {
-    return sessionStorage.getItem('se_api_key') || '';
-  }
-
   window.addEventListener('load', () => {
     // Shared paragraph spacing for all AI message bubbles
     const sharedStyle = document.createElement('style');
@@ -2806,7 +2624,6 @@ FORMATTING RULES:
     setTimeout(() => {
       document.getElementById('progress-fill').style.width = '0%';
     }, 600);
-    initApiKey();
   });
 
 </script>
